@@ -84,7 +84,7 @@ def load_questions():
 
 questions = load_questions()
 
-st.title("🧠 RGB 성격 심리 검사")
+st.title("🧠 퍼스널컬러 심리검사")
 st.markdown("---")
 
 if questions:
