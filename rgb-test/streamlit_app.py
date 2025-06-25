@@ -74,7 +74,6 @@ def get_description_index(percentage):
     return 9
 
 @st.cache_data
-import os
 
 def load_questions():
     try:
