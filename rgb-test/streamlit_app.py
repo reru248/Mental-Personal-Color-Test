@@ -74,14 +74,16 @@ def get_description_index(percentage):
     return 9
 
 @st.cache_data
+import os
+
 def load_questions():
     try:
-        with open('questions.json', 'r', encoding='utf-8') as f:
+        file_path = os.path.join('rgb-test', 'questions.json')
+        with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        st.error("`questions.json` 파일을 찾을 수 없습니다. `streamlit_app.py`와 같은 폴더에 있는지 확인해주세요.")
+        st.error("`rgb-test/questions.json` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요.")
         return None
-
 questions = load_questions()
 
 st.title("🧠 퍼스널컬러 심리검사")
