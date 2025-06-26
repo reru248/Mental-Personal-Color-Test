@@ -4,6 +4,42 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import os
 
+st.markdown("""
+<style>
+/* 질문 텍스트를 담을 상자의 스타일 */
+.question-box {
+    min-height: 100px; /* 질문 길이에 상관없이 최소 높이를 고정 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border-radius: 10px;
+    background-color: #f0f2f6; /* 배경색 추가 */
+    margin-bottom: 1rem; /* 아래쪽 여백 추가 */
+}
+
+/* h2 태그 (질문 텍스트) 스타일 */
+.question-box h2 {
+    text-align: center;
+    font-size: 1.7rem;
+}
+
+/* Streamlit 버튼 기본 스타일 덮어쓰기 */
+div[data-testid="stButton"] > button {
+    width: 100%;
+    height: 55px; /* 버튼 높이 증가 */
+    font-size: 1.2rem; /* 버튼 내 글자 크기 증가 */
+    font-weight: bold;
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+}
+div[data-testid="stButton"] > button:hover {
+    border-color: #457B9D;
+    color: #457B9D;
+}
+</style>
+""", unsafe_allow_html=True)
+
 font_path = os.path.abspath('rgb-test/NanumGothic.ttf')
 if os.path.exists(font_path):
     fm.fontManager.addfont(font_path)
