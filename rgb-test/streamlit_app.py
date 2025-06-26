@@ -141,11 +141,18 @@ if questions:
 
     if next_question:
         q = next_question
-        st.subheader(f"Q{q['id']}. {q['text']}")
         
-        cols = st.columns(9)
+        st.markdown(f"<div class='question-box'><h2>Q{q['id']}. {q['text']}</h2></div>", unsafe_allow_html=True)
+        
+        label_cols = st.columns([1, 5, 1]) # 가운데 공백을 위한 3단 컬럼
+        with label_cols[0]:
+            st.markdown("<p style='text-align: left; font-weight: bold; color: #555;'>⟵ 그렇지 않다</p>", unsafe_allow_html=True)
+        with label_cols[2]:
+            st.markdown("<p style='text-align: right; font-weight: bold; color: #555;'>그렇다 ⟶</p>", unsafe_allow_html=True)
+
+        button_cols = st.columns(9)
         for i, val in enumerate(range(-4, 5)):
-            if cols[i].button(str(val), key=f"q{q['id']}_val{val}"):
+            if button_cols[i].button(str(val), key=f"q{q['id']}_val{val}"):
                 st.session_state.responses[q['id']] = {'type': q['type'], 'value': val}
                 st.rerun()
     
