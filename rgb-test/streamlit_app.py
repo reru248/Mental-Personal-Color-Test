@@ -160,16 +160,18 @@ if questions:
         st.balloons()
         st.success("검사가 완료되었습니다! 아래에서 결과를 확인하세요. 🎉")
         st.markdown("---")
-        
-       scores = {'RP': 0, 'RS': 0, 'GP': 0, 'GS': 0, 'BP': 0, 'BS': 0}
+
+        scores = {'RP': 0, 'RS': 0, 'GP': 0, 'GS': 0, 'BP': 0, 'BS': 0}
         for q_id, resp in st.session_state.responses.items():
             scores[resp['type']] += resp['value']
 
-        # 2. 최종 R, G, B 점수 계산
-        final_scores = {}
-        final_scores['R'] = 128 + scores['RP'] - scores['RS']
-        final_scores['G'] = 128 + scores['GP'] - scores['GS']
-        final_scores['B'] = 128 + scores['BP'] - scores['BS']
+        final_scores = {
+            'R': 128 + scores['RP'] - scores['RS'],
+            'G': 128 + scores['GP'] - scores['GS'],
+            'B': 128 + scores['BP'] - scores['BS']
+        }
+    
+    
         
         # 3. 절대 점수 및 퍼센트, 색상값 계산 (이전 로직과 유사)
         absolute_scores = {
