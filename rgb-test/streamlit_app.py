@@ -3,6 +3,7 @@ import json
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import os
+import io
 
 st.markdown("""
 <style>
@@ -193,6 +194,8 @@ if questions:
         hex_color = '#{:02X}{:02X}{:02X}'.format(*rgb_tuple)
 
         st.header("📈 당신의 성격 분석 결과")
+
+        fig, ax = plt.subplots(figsize=(10, 5))
         
         col1, col2 = st.columns([1, 1])
 
@@ -242,6 +245,16 @@ if questions:
             st.pyplot(fig)
         
         st.markdown("---")
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches='tight')
+        
+        st.download_button(
+            label="📊 결과 이미지 저장하기",
+            data=buf.getvalue(),
+            file_name="my_rgb_result.png",
+            mime="image/png",
+        )
         
         st.header("📜 상세 성격 분석")
 
