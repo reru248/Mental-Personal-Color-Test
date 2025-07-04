@@ -49,7 +49,7 @@ div[data-testid="stDownloadButton"] > button {
 </style>
 """, unsafe_allow_html=True)
 
-# --- [수정 안함] 사용자가 요청한 절대 경로 방식 유지 ---
+# --- 사용자가 요청한 절대 경로 방식 유지 ---
 font_path = os.path.abspath('rgb-test/NanumGothic.ttf')
 if os.path.exists(font_path):
     fm.fontManager.addfont(font_path)
@@ -122,7 +122,7 @@ def get_description_index(percentage):
 @st.cache_data
 def load_questions():
     try:
-        # --- [수정 안함] 사용자가 요청한 절대 경로 방식 유지 ---
+        # --- 사용자가 요청한 절대 경로 방식 유지 ---
         file_path = os.path.join('rgb-test', 'questions.json')
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -130,158 +130,167 @@ def load_questions():
         st.error("`rgb-test/questions.json` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요.")
         return None
 
-questions = load_questions()
+questions_data = load_questions()
 
 st.title("🧠 퍼스널컬러 심리검사")
 st.markdown("---")
 
-if questions:
-    total_questions = len(questions)
-
-    if 'responses' not in st.session_state:
-        st.session_state.responses = {}
+if questions_data:
+    # --- [오류 수정] JSON 구조에 맞춰 질문 리스트를 가져오는 로직 ---
+    question_list = []
+    if isinstance(questions_data, dict) and 'questions' in questions_data:
+        question_list = questions_data['questions']
+    elif isinstance(questions_data, list):
+        question_list = questions_data
+    else:
+        st.error("questions.json 파일의 형식이 올바르지 않습니다. 리스트 또는 {'questions': [...]} 형식이어야 합니다.")
     
-    next_question = None
-    for q in questions:
-        if q['id'] not in st.session_state.responses:
-            next_question = q
-            break
+    if question_list:
+        total_questions = len(question_list)
 
-    progress = len(st.session_state.responses) / total_questions
-    st.progress(progress, text=f"진행률: {len(st.session_state.responses)} / {total_questions}")
+        if 'responses' not in st.session_state:
+            st.session_state.responses = {}
+        
+        next_question = None
+        for q in question_list:
+            if q['id'] not in st.session_state.responses:
+                next_question = q
+                break
 
-    if next_question:
-        q = next_question
-        
-        st.markdown(f"<div class='question-box'><h2>Q{q['id']}. {q['text']}</h2></div>", unsafe_allow_html=True)
-        
-        label_cols = st.columns([1, 5, 1])
-        with label_cols[0]:
-            st.markdown("<p style='text-align: left; font-weight: bold; color: #555;'>⟵ 그렇지 않다</p>", unsafe_allow_html=True)
-        with label_cols[2]:
-            st.markdown("<p style='text-align: right; font-weight: bold; color: #555;'>그렇다 ⟶</p>", unsafe_allow_html=True)
+        progress = len(st.session_state.responses) / total_questions
+        st.progress(progress, text=f"진행률: {len(st.session_state.responses)} / {total_questions}")
 
-        button_cols = st.columns(9)
-        for i, val in enumerate(range(-4, 5)):
-            if button_cols[i].button(str(val), key=f"q{q['id']}_val{val}"):
-                st.session_state.responses[q['id']] = {'type': q['type'], 'value': val}
-                st.rerun()
-    
-    elif len(st.session_state.responses) == total_questions:
-        st.balloons()
-        st.success("검사가 완료되었습니다! 아래에서 결과를 확인하세요. 🎉")
-        st.markdown("---")
-        
-        scores = {'RP': 0, 'RS': 0, 'GP': 0, 'GS': 0, 'BP': 0, 'BS': 0}
-        
-        for q_id, resp in st.session_state.responses.items():
-            scores[resp['type']] += resp['value']
+        if next_question:
+            q = next_question
+            
+            st.markdown(f"<div class='question-box'><h2>Q{q['id']}. {q['text']}</h2></div>", unsafe_allow_html=True)
+            
+            label_cols = st.columns([1, 5, 1])
+            with label_cols[0]:
+                st.markdown("<p style='text-align: left; font-weight: bold; color: #555;'>⟵ 그렇지 않다</p>", unsafe_allow_html=True)
+            with label_cols[2]:
+                st.markdown("<p style='text-align: right; font-weight: bold; color: #555;'>그렇다 ⟶</p>", unsafe_allow_html=True)
 
-        final_scores = {
-            'R': 128 + scores['RP'] - scores['RS'],
-            'G': 128 + scores['GP'] - scores['GS'],
-            'B': 128 + scores['BP'] - scores['BS']
-        }
+            button_cols = st.columns(9)
+            for i, val in enumerate(range(-4, 5)):
+                if button_cols[i].button(str(val), key=f"q{q['id']}_val{val}"):
+                    st.session_state.responses[q['id']] = {'type': q['type'], 'value': val}
+                    st.rerun()
         
-        absolute_scores = {
-            k: max(v, 0) for k, v in final_scores.items()
-        }
-        
-        percentages = {
-            k: round((v / 256) * 100, 1) for k, v in absolute_scores.items()
-        }
+        elif len(st.session_state.responses) == total_questions:
+            st.balloons()
+            st.success("검사가 완료되었습니다! 아래에서 결과를 확인하세요. 🎉")
+            st.markdown("---")
+            
+            scores = {'RP': 0, 'RS': 0, 'GP': 0, 'GS': 0, 'BP': 0, 'BS': 0}
+            
+            for q_id, resp in st.session_state.responses.items():
+                scores[resp['type']] += resp['value']
 
-        rgb_for_color = {
-            k: min(v, 255) for k, v in absolute_scores.items()
-        }
-        rgb_tuple = (
-            rgb_for_color.get('R', 0),
-            rgb_for_color.get('G', 0),
-            rgb_for_color.get('B', 0)
-        )
-        hex_color = '#{:02X}{:02X}{:02X}'.format(*rgb_tuple)
+            final_scores = {
+                'R': 128 + scores['RP'] - scores['RS'],
+                'G': 128 + scores['GP'] - scores['GS'],
+                'B': 128 + scores['BP'] - scores['BS']
+            }
+            
+            absolute_scores = {
+                k: max(v, 0) for k, v in final_scores.items()
+            }
+            
+            percentages = {
+                k: round((v / 256) * 100, 1) for k, v in absolute_scores.items()
+            }
 
-        st.header("📈 당신의 성격 분석 결과")
-        
-        col1, col2 = st.columns([1, 1])
-
-        # --- [오류 수정] Figure 객체를 with 블록 밖에서 한번만 생성 ---
-        fig, ax = plt.subplots(figsize=(10, 5))
-        
-        with col1:
-            st.markdown("### 🎨 당신의 고유 성격 색상")
-            st.markdown(
-                f"""
-                <div style='
-                    width: 100%; 
-                    height: 200px; 
-                    background-color: {hex_color};
-                    border: 2px solid #ccc;
-                    border-radius: 12px;
-                '></div>
-                """,
-                unsafe_allow_html=True
+            rgb_for_color = {
+                k: min(v, 255) for k, v in absolute_scores.items()
+            }
+            rgb_tuple = (
+                rgb_for_color.get('R', 0),
+                rgb_for_color.get('G', 0),
+                rgb_for_color.get('B', 0)
             )
-            st.markdown(f"<p style='text-align: center; font-size: 24px; font-weight: bold; margin-top: 10px;'>{hex_color}</p>", unsafe_allow_html=True)
+            hex_color = '#{:02X}{:02X}{:02X}'.format(*rgb_tuple)
+
+            st.header("📈 당신의 성격 분석 결과")
             
-        with col2:
-            st.markdown("### ✨ 유형별 강도 시각화")
+            col1, col2 = st.columns([1, 1])
             
-            y_labels = ["진취형 (R)", "중재형 (G)", "신중형 (B)"]
-            values = [percentages.get('R', 0), percentages.get('G', 0), percentages.get('B', 0)]
-            colors = ['#E63946', '#7FB069', '#457B9D']
+            with col1:
+                st.markdown("### 🎨 당신의 고유 성격 색상")
+                st.markdown(
+                    f"""
+                    <div style='
+                        width: 100%; 
+                        height: 200px; 
+                        background-color: {hex_color};
+                        border: 2px solid #ccc;
+                        border-radius: 12px;
+                    '></div>
+                    """,
+                    unsafe_allow_html=True
+                )
+                st.markdown(f"<p style='text-align: center; font-size: 24px; font-weight: bold; margin-top: 10px;'>{hex_color}</p>", unsafe_allow_html=True)
+                
+            with col2:
+                # --- [오류 수정] 그래프를 그리기 전에 Figure 객체를 생성 ---
+                fig, ax = plt.subplots(figsize=(10, 5))
+                st.markdown("### ✨ 유형별 강도 시각화")
+                
+                y_labels = ["진취형 (R)", "중재형 (G)", "신중형 (B)"]
+                values = [percentages.get('R', 0), percentages.get('G', 0), percentages.get('B', 0)]
+                colors = ['#E63946', '#7FB069', '#457B9D']
 
-            # --- [오류 수정] 밖에서 생성된 ax 객체를 사용하여 그래프를 그림 ---
-            bars = ax.barh(y_labels, values, color=colors, height=0.6)
+                bars = ax.barh(y_labels, values, color=colors, height=0.6)
 
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            ax.spines['left'].set_visible(False)
-            ax.spines['bottom'].set_visible(False)
-            ax.xaxis.set_ticks_position('none')
-            ax.yaxis.set_ticks_position('none')
-            ax.set_xticklabels([])
-            ax.set_yticklabels(y_labels, fontsize=14) 
-            ax.set_xlim(0, 115)
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+                ax.spines['left'].set_visible(False)
+                ax.spines['bottom'].set_visible(False)
+                ax.xaxis.set_ticks_position('none')
+                ax.yaxis.set_ticks_position('none')
+                ax.set_xticklabels([])
+                ax.set_yticklabels(y_labels, fontsize=14) 
+                ax.set_xlim(0, 115)
 
-            for bar in bars:
-                width = bar.get_width()
-                ax.text(width + 2,
-                        bar.get_y() + bar.get_height() / 2,
-                        f'{width}%',
-                        ha='left', va='center',
-                        fontsize=12)
-            st.pyplot(fig)
-        
-        st.markdown("---")
+                for bar in bars:
+                    width = bar.get_width()
+                    ax.text(width + 2,
+                            bar.get_y() + bar.get_height() / 2,
+                            f'{width}%',
+                            ha='left', va='center',
+                            fontsize=12)
+                st.pyplot(fig)
+            
+            st.markdown("---")
 
-        # --- 이미지 다운로드 기능 ---
-        buf = io.BytesIO()
-        fig.savefig(buf, format="png", bbox_inches='tight')
-        
-        st.download_button(
-            label="📊 결과 이미지 저장하기",
-            data=buf.getvalue(),
-            file_name="my_rgb_result.png",
-            mime="image/png",
-        )
-        
-        st.header("📜 상세 성격 분석")
+            # --- 이미지 다운로드 기능 ---
+            buf = io.BytesIO()
+            # with col2 블록에서 그린 fig 객체를 저장합니다.
+            fig.savefig(buf, format="png", bbox_inches='tight')
+            
+            st.download_button(
+                label="📊 결과 이미지 저장하기",
+                data=buf.getvalue(),
+                file_name="my_rgb_result.png",
+                mime="image/png",
+            )
+            
+            st.header("📜 상세 성격 분석")
 
-        r_index = get_description_index(percentages.get('R', 0))
-        g_index = get_description_index(percentages.get('G', 0))
-        b_index = get_description_index(percentages.get('B', 0))
+            r_index = get_description_index(percentages.get('R', 0))
+            g_index = get_description_index(percentages.get('G', 0))
+            b_index = get_description_index(percentages.get('B', 0))
 
-        st.markdown("### 🔴 진취형(R)에 대하여")
-        st.info(description_blocks['R'][r_index])
+            st.markdown("### 🔴 진취형(R)에 대하여")
+            st.info(description_blocks['R'][r_index])
 
-        st.markdown("### 🟢 중재형(G)에 대하여")
-        st.success(description_blocks['G'][g_index])
-        
-        st.markdown("### 🔵 신중형(B)에 대하여")
-        st.warning(description_blocks['B'][b_index])
+            st.markdown("### 🟢 중재형(G)에 대하여")
+            st.success(description_blocks['G'][g_index])
+            
+            st.markdown("### 🔵 신중형(B)에 대하여")
+            st.warning(description_blocks['B'][b_index])
 
-        if st.button("다시 검사하기"):
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
+            if st.button("다시 검사하기"):
+                for key in list(st.session_state.keys()):
+                    del st.session_state[key]
+                st.rerun()
