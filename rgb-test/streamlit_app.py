@@ -5,6 +5,7 @@ import matplotlib.font_manager as fm
 import os
 import io
 
+# --- UI 개선을 위한 CSS 스타일 ---
 st.markdown("""
 <style>
 /* 질문 텍스트를 담을 상자의 스타일 */
@@ -38,9 +39,17 @@ div[data-testid="stButton"] > button:hover {
     border-color: #457B9D;
     color: #457B9D;
 }
+/* 다운로드 버튼 스타일 */
+div[data-testid="stDownloadButton"] > button {
+    width: 100%;
+    height: 55px;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
 </style>
 """, unsafe_allow_html=True)
 
+# --- [수정 안함] 사용자가 요청한 절대 경로 방식 유지 ---
 font_path = os.path.abspath('rgb-test/NanumGothic.ttf')
 if os.path.exists(font_path):
     fm.fontManager.addfont(font_path)
@@ -51,11 +60,11 @@ else:
     st.warning(f"""
     한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 
     그래프의 한글이 깨질 수 있습니다. 
-    폰트 파일을 `streamlit_app.py`와 같은 폴더에 추가해주세요.
+    폰트 파일을 `rgb-test` 폴더 안에 추가해주세요.
     """)
 
 
-# --- [수정] 최종 '빌딩 블록' 설명 데이터 (객관적/현실적 톤) ---
+# --- '빌딩 블록' 설명 데이터 ---
 description_blocks = {
     "R": [
         "• 주도성: 리더 역할을 맡기보다, 명확하게 주어진 지시를 따르는 것을 훨씬 편안하게 느낍니다.\n• 도전정신: 검증되지 않은 새로운 방식보다는, 예측 가능하고 안정성이 확보된 방법을 따르려는 경향이 매우 강합니다.\n• 결단력: 스스로 결정을 내리기보다, 다른 사람이나 그룹의 의견에 따르는 것을 선호합니다.\n• 목표지향성: 뚜렷한 개인적 목표를 설정하고 추진하기보다, 조직의 목표나 현재의 과업에 집중합니다.\n• 적극성: 자신의 의견을 강하게 주장하기보다, 주로 듣고 관망하는 역할을 맡습니다.",
@@ -111,15 +120,16 @@ def get_description_index(percentage):
     return 9
 
 @st.cache_data
-
 def load_questions():
     try:
+        # --- [수정 안함] 사용자가 요청한 절대 경로 방식 유지 ---
         file_path = os.path.join('rgb-test', 'questions.json')
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
         st.error("`rgb-test/questions.json` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요.")
         return None
+
 questions = load_questions()
 
 st.title("🧠 퍼스널컬러 심리검사")
@@ -145,7 +155,7 @@ if questions:
         
         st.markdown(f"<div class='question-box'><h2>Q{q['id']}. {q['text']}</h2></div>", unsafe_allow_html=True)
         
-        label_cols = st.columns([1, 5, 1]) # 가운데 공백을 위한 3단 컬럼
+        label_cols = st.columns([1, 5, 1])
         with label_cols[0]:
             st.markdown("<p style='text-align: left; font-weight: bold; color: #555;'>⟵ 그렇지 않다</p>", unsafe_allow_html=True)
         with label_cols[2]:
@@ -161,8 +171,9 @@ if questions:
         st.balloons()
         st.success("검사가 완료되었습니다! 아래에서 결과를 확인하세요. 🎉")
         st.markdown("---")
-
+        
         scores = {'RP': 0, 'RS': 0, 'GP': 0, 'GS': 0, 'BP': 0, 'BS': 0}
+        
         for q_id, resp in st.session_state.responses.items():
             scores[resp['type']] += resp['value']
 
@@ -171,10 +182,7 @@ if questions:
             'G': 128 + scores['GP'] - scores['GS'],
             'B': 128 + scores['BP'] - scores['BS']
         }
-    
-    
         
-        # 3. 절대 점수 및 퍼센트, 색상값 계산 (이전 로직과 유사)
         absolute_scores = {
             k: max(v, 0) for k, v in final_scores.items()
         }
@@ -194,11 +202,12 @@ if questions:
         hex_color = '#{:02X}{:02X}{:02X}'.format(*rgb_tuple)
 
         st.header("📈 당신의 성격 분석 결과")
-
-        fig, ax = plt.subplots(figsize=(10, 5))
         
         col1, col2 = st.columns([1, 1])
 
+        # --- [오류 수정] Figure 객체를 with 블록 밖에서 한번만 생성 ---
+        fig, ax = plt.subplots(figsize=(10, 5))
+        
         with col1:
             st.markdown("### 🎨 당신의 고유 성격 색상")
             st.markdown(
@@ -222,7 +231,7 @@ if questions:
             values = [percentages.get('R', 0), percentages.get('G', 0), percentages.get('B', 0)]
             colors = ['#E63946', '#7FB069', '#457B9D']
 
-            fig, ax = plt.subplots(figsize=(10, 5))
+            # --- [오류 수정] 밖에서 생성된 ax 객체를 사용하여 그래프를 그림 ---
             bars = ax.barh(y_labels, values, color=colors, height=0.6)
 
             ax.spines['top'].set_visible(False)
@@ -246,6 +255,7 @@ if questions:
         
         st.markdown("---")
 
+        # --- 이미지 다운로드 기능 ---
         buf = io.BytesIO()
         fig.savefig(buf, format="png", bbox_inches='tight')
         
