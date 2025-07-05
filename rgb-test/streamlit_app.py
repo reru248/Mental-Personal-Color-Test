@@ -60,8 +60,6 @@ if os.path.exists(font_path):
 else:
     st.warning(f"""
     한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 
-    그래프의 한글이 깨질 수 있습니다. 
-    폰트 파일을 `rgb-test` 폴더 안에 추가해주세요.
     """)
 
 # --- [추가] 종합 결과 이미지 생성 함수 ---
