@@ -1,9 +1,10 @@
-import streamlit as st
+mport streamlit as st
 import json
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import os
 import io
+from PIL import Image, ImageDraw, ImageFont # 이미지 생성을 위한 라이브러리 추가
 
 # --- UI 개선을 위한 CSS 스타일 ---
 st.markdown("""
@@ -63,6 +64,79 @@ else:
     폰트 파일을 `rgb-test` 폴더 안에 추가해주세요.
     """)
 
+# --- [추가] 종합 결과 이미지 생성 함수 ---
+def generate_result_image(hex_color, percentages, descriptions, font_path):
+    img_width, img_height = 800, 1000
+    img = Image.new("RGB", (img_width, img_height), color="white")
+    draw = ImageDraw.Draw(img)
+
+    # 폰트 로드 (경로를 통일하여 사용)
+    try:
+        title_font = ImageFont.truetype(font_path, 36)
+        text_font_bold = ImageFont.truetype(font_path, 22)
+        text_font = ImageFont.truetype(font_path, 18)
+    except IOError:
+        st.warning(f"이미지 생성에 필요한 폰트('{font_path}')를 찾지 못해 기본 폰트를 사용합니다.")
+        title_font = ImageFont.load_default()
+        text_font_bold = ImageFont.load_default()
+        text_font = ImageFont.load_default()
+        
+    # 1. 제목
+    draw.text((400, 50), "퍼스널컬러 심리검사 결과", font=title_font, fill="black", anchor="mm")
+
+    # 2. 색상 상자 및 HEX 코드
+    draw.rectangle([100, 100, 700, 250], fill=hex_color, outline="gray", width=2)
+    draw.text((400, 280), f"나의 고유 성격 색상: {hex_color}", font=text_font_bold, fill="black", anchor="mm")
+    
+    # 3. 유형별 강도 (그래프 대신 텍스트로 표시)
+    y_start = 350
+    draw.text((100, y_start), f"🔴 진취형(R): {percentages['R']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_start + 30, 100 + (percentages['R'] * 6), y_start + 50], fill='#E63946')
+    
+    draw.text((100, y_start + 70), f"🟢 중재형(G): {percentages['G']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_start + 100, 100 + (percentages['G'] * 6), y_start + 120], fill='#7FB069')
+    
+    draw.text((100, y_start + 140), f"🔵 신중형(B): {percentages['B']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_start + 170, 100 + (percentages['B'] * 6), y_start + 190], fill='#457B9D')
+
+    # 4. 상세 설명
+    y_start_desc = 580
+    draw.text((50, y_start_desc), "📜 상세 성격 분석", font=title_font, fill="black")
+
+    # 긴 텍스트를 자동으로 줄바꿈하며 그리기 위한 함수
+    def draw_multiline_text(text, y_start):
+        lines = []
+        for line in text.split('\n'):
+            words = line.split(' ')
+            line_buffer = ""
+            for word in words:
+                if draw.textlength(line_buffer + word, font=text_font) < img_width - 120:
+                    line_buffer += word + " "
+                else:
+                    lines.append(line_buffer)
+                    line_buffer = word + " "
+            lines.append(line_buffer)
+        
+        current_y = y_start
+        for line in lines:
+            draw.text((60, current_y), line, font=text_font, fill="black")
+            current_y += text_font.size + 5
+        return current_y
+
+    current_y = y_start_desc + 60
+    draw.text((60, current_y), "🔴 진취형(R)에 대하여", font=text_font_bold, fill="#E63946")
+    current_y = draw_multiline_text(descriptions['R'], current_y + 30)
+
+    draw.text((60, current_y + 20), "🟢 중재형(G)에 대하여", font=text_font_bold, fill="#7FB069")
+    current_y = draw_multiline_text(descriptions['G'], current_y + 50)
+    
+    draw.text((60, current_y + 20), "🔵 신중형(B)에 대하여", font=text_font_bold, fill="#457B9D")
+    draw_multiline_text(descriptions['B'], current_y + 50)
+
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
 
 # --- '빌딩 블록' 설명 데이터 ---
 description_blocks = {
@@ -263,16 +337,23 @@ if questions_data:
             
             st.markdown("---")
 
-            # --- 이미지 다운로드 기능 ---
-            buf = io.BytesIO()
-            # with col2 블록에서 그린 fig 객체를 저장합니다.
-            fig.savefig(buf, format="png", bbox_inches='tight')
+            r_index = get_description_index(percentages.get('R', 0))
+            g_index = get_description_index(percentages.get('G', 0))
+            b_index = get_description_index(percentages.get('B', 0))
+
+            description_texts = {
+                'R': description_blocks['R'][r_index],
+                'G': description_blocks['G'][g_index],
+                'B': description_blocks['B'][b_index],
+            }
+
+            image_buffer = generate_result_image(hex_color, percentages, description_texts, font_path)
             
             st.download_button(
-                label="📊 결과 이미지 저장하기",
-                data=buf.getvalue(),
-                file_name="my_rgb_result.png",
-                mime="image/png",
+                label="📥 종합 결과 이미지 저장하기",
+                data=image_buffer,
+                file_name="RGB_personality_result.png",
+                mime="image/png"
             )
             
             st.header("📜 상세 성격 분석")
