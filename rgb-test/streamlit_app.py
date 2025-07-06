@@ -4,34 +4,32 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import os
 import io
-from PIL import Image, ImageDraw, ImageFont # 이미지 생성을 위한 라이브러리 추가
+from PIL import Image, ImageDraw, ImageFont
 
 # --- UI 개선을 위한 CSS 스타일 ---
 st.markdown("""
 <style>
 /* 질문 텍스트를 담을 상자의 스타일 */
 .question-box {
-    min-height: 100px; /* 질문 길이에 상관없이 최소 높이를 고정 */
+    min-height: 100px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 1rem;
     border-radius: 10px;
-    background-color: #f0f2f6; /* 배경색 추가 */
-    margin-bottom: 1rem; /* 아래쪽 여백 추가 */
+    background-color: #f0f2f6;
+    margin-bottom: 1rem;
 }
-
 /* h2 태그 (질문 텍스트) 스타일 */
 .question-box h2 {
     text-align: center;
     font-size: 1.7rem;
 }
-
 /* Streamlit 버튼 기본 스타일 덮어쓰기 */
 div[data-testid="stButton"] > button {
     width: 100%;
-    height: 55px; /* 버튼 높이 증가 */
-    font-size: 1.2rem; /* 버튼 내 글자 크기 증가 */
+    height: 55px;
+    font-size: 1.2rem;
     font-weight: bold;
     border-radius: 8px;
     border: 2px solid #e0e0e0;
@@ -60,15 +58,17 @@ if os.path.exists(font_path):
 else:
     st.warning(f"""
     한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 
+    그래프의 한글이 깨질 수 있습니다. 
+    폰트 파일을 `rgb-test` 폴더 안에 추가해주세요.
     """)
 
-# --- [추가] 종합 결과 이미지 생성 함수 ---
+# --- [수정] 종합 결과 이미지 생성 함수 (오류 해결 버전) ---
 def generate_result_image(hex_color, percentages, descriptions, font_path):
-    img_width, img_height = 800, 1000
-    img = Image.new("RGB", (img_width, img_height), color="white")
+    # [해결 1] 이미지 세로 길이를 1600으로 늘려 공간 확보
+    img_width, img_height = 800, 1600
+    img = Image.new("RGB", (img_width, img_height), color="#FDFDFD") # 배경색을 약간 부드럽게 변경
     draw = ImageDraw.Draw(img)
 
-    # 폰트 로드 (경로를 통일하여 사용)
     try:
         title_font = ImageFont.truetype(font_path, 36)
         text_font_bold = ImageFont.truetype(font_path, 22)
@@ -86,29 +86,32 @@ def generate_result_image(hex_color, percentages, descriptions, font_path):
     draw.rectangle([100, 100, 700, 250], fill=hex_color, outline="gray", width=2)
     draw.text((400, 280), f"나의 고유 성격 색상: {hex_color}", font=text_font_bold, fill="black", anchor="mm")
     
-    # 3. 유형별 강도 (그래프 대신 텍스트로 표시)
+    # 3. 유형별 강도
     y_start = 350
-    draw.text((100, y_start), f"🔴 진취형(R): {percentages['R']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_start + 30, 100 + (percentages['R'] * 6), y_start + 50], fill='#E63946')
+    # [해결 2] 깨지는 이모지(🔴)를 제거
+    draw.text((100, y_start), f"진취형(R): {percentages['R']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_start + 35, 100 + (percentages['R'] * 6), y_start + 55], fill='#E63946')
     
-    draw.text((100, y_start + 70), f"🟢 중재형(G): {percentages['G']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_start + 100, 100 + (percentages['G'] * 6), y_start + 120], fill='#7FB069')
+    draw.text((100, y_start + 70), f"중재형(G): {percentages['G']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_start + 105, 100 + (percentages['G'] * 6), y_start + 125], fill='#7FB069')
     
-    draw.text((100, y_start + 140), f"🔵 신중형(B): {percentages['B']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_start + 170, 100 + (percentages['B'] * 6), y_start + 190], fill='#457B9D')
+    draw.text((100, y_start + 140), f"신중형(B): {percentages['B']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_start + 175, 100 + (percentages['B'] * 6), y_start + 200], fill='#457B9D')
 
     # 4. 상세 설명
     y_start_desc = 580
-    draw.text((50, y_start_desc), "📜 상세 성격 분석", font=title_font, fill="black")
+    # [해결 2] 깨지는 이모지(📜)를 제거
+    draw.text((50, y_start_desc), "상세 성격 분석", font=title_font, fill="black")
 
-    # 긴 텍스트를 자동으로 줄바꿈하며 그리기 위한 함수
-    def draw_multiline_text(text, y_start):
+    def draw_multiline_text(text, y_start, width_limit):
         lines = []
-        for line in text.split('\n'):
+        # [해결 2] 설명 텍스트 앞의 이모지(•)도 제거
+        cleaned_text = text.replace("• ", "") 
+        for line in cleaned_text.split('\n'):
             words = line.split(' ')
             line_buffer = ""
             for word in words:
-                if draw.textlength(line_buffer + word, font=text_font) < img_width - 120:
+                if draw.textlength(line_buffer + word, font=text_font) < width_limit:
                     line_buffer += word + " "
                 else:
                     lines.append(line_buffer)
@@ -117,24 +120,25 @@ def generate_result_image(hex_color, percentages, descriptions, font_path):
         
         current_y = y_start
         for line in lines:
-            draw.text((60, current_y), line, font=text_font, fill="black")
-            current_y += text_font.size + 5
+            draw.text((60, current_y), line, font=text_font, fill="#333333")
+            current_y += text_font.size + 6 # 줄 간격 살짝 조정
         return current_y
 
-    current_y = y_start_desc + 60
-    draw.text((60, current_y), "🔴 진취형(R)에 대하여", font=text_font_bold, fill="#E63946")
-    current_y = draw_multiline_text(descriptions['R'], current_y + 30)
+    current_y = y_start_desc + 70
+    # [해결 2] 깨지는 이모지(🔴)를 제거
+    draw.text((60, current_y), "진취형(R)에 대하여", font=text_font_bold, fill="#E63946")
+    current_y = draw_multiline_text(descriptions['R'], current_y + 40, img_width - 120)
 
-    draw.text((60, current_y + 20), "🟢 중재형(G)에 대하여", font=text_font_bold, fill="#7FB069")
-    current_y = draw_multiline_text(descriptions['G'], current_y + 50)
+    draw.text((60, current_y + 20), "중재형(G)에 대하여", font=text_font_bold, fill="#7FB069")
+    current_y = draw_multiline_text(descriptions['G'], current_y + 50, img_width - 120)
     
-    draw.text((60, current_y + 20), "🔵 신중형(B)에 대하여", font=text_font_bold, fill="#457B9D")
-    draw_multiline_text(descriptions['B'], current_y + 50)
-
+    draw.text((60, current_y + 20), "신중형(B)에 대하여", font=text_font_bold, fill="#457B9D")
+    draw_multiline_text(descriptions['B'], current_y + 50, img_width - 120)
 
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     return buffer.getvalue()
+
 
 # --- '빌딩 블록' 설명 데이터 ---
 description_blocks = {
@@ -194,7 +198,6 @@ def get_description_index(percentage):
 @st.cache_data
 def load_questions():
     try:
-        # --- 사용자가 요청한 절대 경로 방식 유지 ---
         file_path = os.path.join('rgb-test', 'questions.json')
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
@@ -208,15 +211,15 @@ st.title("🧠 퍼스널컬러 심리검사")
 st.markdown("---")
 
 if questions_data:
-    # --- [오류 수정] JSON 구조에 맞춰 질문 리스트를 가져오는 로직 ---
     question_list = []
     if isinstance(questions_data, dict) and 'questions' in questions_data:
         question_list = questions_data['questions']
     elif isinstance(questions_data, list):
         question_list = questions_data
     else:
-        st.error("questions.json 파일의 형식이 올바르지 않습니다. 리스트 또는 {'questions': [...]} 형식이어야 합니다.")
-    
+        st.error("questions.json 파일의 형식이 올바르지 않습니다.")
+        question_list = []
+
     if question_list:
         total_questions = len(question_list)
 
@@ -276,12 +279,7 @@ if questions_data:
             rgb_for_color = {
                 k: min(v, 255) for k, v in absolute_scores.items()
             }
-            rgb_tuple = (
-                rgb_for_color.get('R', 0),
-                rgb_for_color.get('G', 0),
-                rgb_for_color.get('B', 0)
-            )
-            hex_color = '#{:02X}{:02X}{:02X}'.format(*rgb_tuple)
+            hex_color = '#{:02X}{:02X}{:02X}'.format(rgb_for_color.get('R', 0), rgb_for_color.get('G', 0), rgb_for_color.get('B', 0))
 
             st.header("📈 당신의 성격 분석 결과")
             
@@ -304,7 +302,6 @@ if questions_data:
                 st.markdown(f"<p style='text-align: center; font-size: 24px; font-weight: bold; margin-top: 10px;'>{hex_color}</p>", unsafe_allow_html=True)
                 
             with col2:
-                # --- [오류 수정] 그래프를 그리기 전에 Figure 객체를 생성 ---
                 fig, ax = plt.subplots(figsize=(10, 5))
                 st.markdown("### ✨ 유형별 강도 시각화")
                 
@@ -355,17 +352,10 @@ if questions_data:
             )
             
             st.header("📜 상세 성격 분석")
-
-            r_index = get_description_index(percentages.get('R', 0))
-            g_index = get_description_index(percentages.get('G', 0))
-            b_index = get_description_index(percentages.get('B', 0))
-
             st.markdown("### 🔴 진취형(R)에 대하여")
             st.info(description_blocks['R'][r_index])
-
             st.markdown("### 🟢 중재형(G)에 대하여")
             st.success(description_blocks['G'][g_index])
-            
             st.markdown("### 🔵 신중형(B)에 대하여")
             st.warning(description_blocks['B'][b_index])
 
