@@ -7,7 +7,7 @@ import io
 from PIL import Image, ImageDraw, ImageFont
 import random
 
-# --- CSS 스타일 정의 ---
+# --- 스타일 CSS ---
 st.markdown(
     """
     <style>
@@ -28,25 +28,16 @@ st.markdown(
         margin-top: 15px;
         margin-bottom: 20px;
     }
-    .button-group button {
-        flex: 1;                   /* 버튼 크기 균등 */
-        height: 60px;
+    div[data-testid="stButton"] > button {
+        width: 70px; 
+        height: 70px;
         font-size: 1.2rem;
         font-weight: bold;
         border: 1px solid #ccc;
-        margin: 0;                 /* 버튼 간격 제거 */
-        border-radius: 0;          /* 기본: 각진 모서리 */
+        border-radius: 0;   /* 각 버튼을 직사각형으로 */
+        margin: 0;
     }
-    /* 왼쪽 끝 버튼만 둥글게 */
-    .button-group button:first-child {
-        border-radius: 8px 0 0 8px;
-    }
-    /* 오른쪽 끝 버튼만 둥글게 */
-    .button-group button:last-child {
-        border-radius: 0 8px 8px 0;
-    }
-    /* hover 효과 */
-    .button-group button:hover {
+    div[data-testid="stButton"] > button:hover {
         border-color: #457B9D;
         color: #457B9D;
     }
@@ -54,17 +45,6 @@ st.markdown(
     """, 
     unsafe_allow_html=True
 )
-
-st.markdown('<div class="button-group">', unsafe_allow_html=True)
-
-cols = st.columns(9)  # 9개 버튼을 가로로 나눔
-for i, val in enumerate(range(-4, 5)):
-    with cols[i]:
-        if st.button(str(val), key=f"q{q['id']}_val{val}"):
-            st.session_state.responses[q['id']] = val
-            st.rerun()
-
-st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 폰트 경로 설정 ---
 font_path = os.path.abspath('rgb-test/NanumGothic.ttf')
@@ -74,7 +54,7 @@ if os.path.exists(font_path):
     plt.rc('font', family=font_name)
     plt.rcParams['axes.unicode_minus'] = False
 else:
-    st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다.")
+    st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 그래프/이미지의 한글이 깨질 수 있습니다.")
 
 # --- 종합 결과 이미지 생성 함수 ---
 def generate_result_image(hex_color, percentages, descriptions, font_path):
@@ -136,7 +116,7 @@ def generate_result_image(hex_color, percentages, descriptions, font_path):
     img.save(buffer, format="PNG")
     return buffer.getvalue()
 
-# --- description 불러오기 ---
+# --- descriptions 로드 ---
 @st.cache_data
 def load_descriptions():
     try:
@@ -144,12 +124,25 @@ def load_descriptions():
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        st.error("`rgb-test/descriptions.json` 파일을 찾을 수 없습니다.")
+        st.error("`rgb-test/descriptions.json` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요.")
         return None
 
 description_blocks = load_descriptions()
 
-# --- 질문 로드 ---
+st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
+
+def get_description_index(percentage):
+    if percentage <= 10: return 0
+    if percentage <= 20: return 1
+    if percentage <= 30: return 2
+    if percentage <= 40: return 3
+    if percentage <= 50: return 4
+    if percentage <= 60: return 5
+    if percentage <= 70: return 6
+    if percentage <= 80: return 7
+    if percentage <= 90: return 8
+    return 9
+
 @st.cache_data
 def load_and_balance_questions():
     try:
@@ -157,7 +150,7 @@ def load_and_balance_questions():
         with open(file_path, 'r', encoding='utf-8') as f:
             questions_data = json.load(f)
     except FileNotFoundError:
-        st.error("`rgb-test/questions.json` 파일을 찾을 수 없습니다.")
+        st.error("`rgb-test/questions.json` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요.")
         return None
 
     initial_question_list = []
@@ -191,9 +184,7 @@ def load_and_balance_questions():
         
     return balanced_list
 
-# --- 앱 실행 ---
-st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
-
+# --- 앱 실행 로직 ---
 question_list = load_and_balance_questions()
 
 st.title("🧠 퍼스널컬러 심리검사")
@@ -224,12 +215,14 @@ if question_list and description_blocks:
         with label_cols[2]:
             st.markdown("<p style='text-align: right; font-weight: bold; color: #555;'>그렇다 ⟶</p>", unsafe_allow_html=True)
 
-        # --- 버튼 블록 (9개 한 줄) ---
+        # --- [수정된 버튼 영역] ---
         st.markdown('<div class="button-group">', unsafe_allow_html=True)
-        for val in range(-4, 5):
-            if st.button(str(val), key=f"q{q['id']}_val{val}"):
-                st.session_state.responses[q['id']] = val
-                st.rerun()
+        cols = st.columns(9)
+        for i, val in enumerate(range(-4, 5)):
+            with cols[i]:
+                if st.button(str(val), key=f"q{q['id']}_val{val}"):
+                    st.session_state.responses[q['id']] = val
+                    st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     
     elif len(st.session_state.responses) == total_questions and total_questions > 0:
@@ -278,18 +271,6 @@ if question_list and description_blocks:
         
         st.markdown("---")
 
-        def get_description_index(percentage):
-            if percentage <= 10: return 0
-            if percentage <= 20: return 1
-            if percentage <= 30: return 2
-            if percentage <= 40: return 3
-            if percentage <= 50: return 4
-            if percentage <= 60: return 5
-            if percentage <= 70: return 6
-            if percentage <= 80: return 7
-            if percentage <= 90: return 8
-            return 9
-
         r_index = get_description_index(percentages.get('R', 0))
         g_index = get_description_index(percentages.get('G', 0))
         b_index = get_description_index(percentages.get('B', 0))
@@ -315,4 +296,3 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
-
