@@ -49,18 +49,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# 버튼 표시 예시
-st.markdown('<div class="button-group">', unsafe_allow_html=True)
-
-cols = st.columns(9)
-for i, col in enumerate(cols, start=-4):
-    with col:
-        if st.button(str(i)):
-            st.write(f"{i} 선택!")
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-
 # --- 폰트 경로 설정 ---
 font_path = os.path.abspath('rgb-test/NanumGothic.ttf')
 if os.path.exists(font_path):
@@ -311,6 +299,7 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+
 
 
 
