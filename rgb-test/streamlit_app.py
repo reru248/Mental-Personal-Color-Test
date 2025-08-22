@@ -19,34 +19,46 @@ st.markdown(
         border-radius: 10px; 
         background-color: #f0f2f6; 
         margin-bottom: 1rem; 
+        flex-direction: column;
     }
-    .question-box h2 { 
-        text-align: center; 
-        font-size: 1.7rem; 
+    .button-group {
+        display: flex;
+        justify-content: center;   /* 중앙 정렬 */
+        flex-wrap: nowrap;         /* 줄바꿈 안되게 */
+        gap: 10px;                 /* 버튼 사이 간격 */
+        background-color: #ffffff; /* 버튼 묶음 배경 */
+        border: 2px solid #e0e0e0; /* 외곽선 */
+        border-radius: 12px;       /* 둥근 모서리 */
+        padding: 10px 15px;        /* 안쪽 여백 */
+        margin-top: 10px;
     }
-    div[data-testid="stButton"] > button { 
-        width: 60px;   /* 버튼 너비 고정 */
-        height: 60px;  /* 버튼 높이 고정 */
+    .button-group button {
+        width: 60px; 
+        height: 60px; 
         font-size: 1.2rem; 
         font-weight: bold; 
-        border-radius: 12px; 
-        border: 2px solid #e0e0e0; 
-        margin: 4px;   /* 버튼 간격 */
+        border-radius: 10px; 
+        border: 2px solid #e0e0e0;
     }
-    div[data-testid="stButton"] > button:hover { 
+    .button-group button:hover {
         border-color: #457B9D; 
         color: #457B9D; 
-    }
-    div[data-testid="stDownloadButton"] > button { 
-        width: 100%; 
-        height: 55px; 
-        font-size: 1.2rem; 
-        font-weight: bold; 
     }
     </style>
     """, 
     unsafe_allow_html=True
 )
+
+# 버튼 표시 예시
+st.markdown('<div class="button-group">', unsafe_allow_html=True)
+
+cols = st.columns(9)
+for i, col in enumerate(cols, start=-4):
+    with col:
+        if st.button(str(i)):
+            st.write(f"{i} 선택!")
+
+st.markdown('</div>', unsafe_allow_html=True)
 
 
 # --- 폰트 경로 설정 ---
@@ -299,6 +311,7 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+
 
 
 
