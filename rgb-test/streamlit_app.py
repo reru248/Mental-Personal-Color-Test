@@ -8,15 +8,45 @@ from PIL import Image, ImageDraw, ImageFont
 import random
 
 st.markdown(
-    """<style>
-    .question-box { min-height: 100px; display: flex; align-items: center; justify-content: center; padding: 1rem; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 1rem; }
-    .question-box h2 { text-align: center; font-size: 1.7rem; }
-    div[data-testid="stButton"] > button { width: 100%; height: 55px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; border: 2px solid #e0e0e0; }
-    div[data-testid="stButton"] > button:hover { border-color: #457B9D; color: #457B9D; }
-    div[data-testid="stDownloadButton"] > button { width: 100%; height: 55px; font-size: 1.2rem; font-weight: bold; }
+    """
+    <style>
+    .question-box { 
+        min-height: 100px; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        padding: 1rem; 
+        border-radius: 10px; 
+        background-color: #f0f2f6; 
+        margin-bottom: 1rem; 
+    }
+    .question-box h2 { 
+        text-align: center; 
+        font-size: 1.7rem; 
+    }
+    div[data-testid="stButton"] > button { 
+        width: 60px;   /* 버튼 너비 고정 */
+        height: 60px;  /* 버튼 높이 고정 */
+        font-size: 1.2rem; 
+        font-weight: bold; 
+        border-radius: 12px; 
+        border: 2px solid #e0e0e0; 
+        margin: 4px;   /* 버튼 간격 */
+    }
+    div[data-testid="stButton"] > button:hover { 
+        border-color: #457B9D; 
+        color: #457B9D; 
+    }
+    div[data-testid="stDownloadButton"] > button { 
+        width: 100%; 
+        height: 55px; 
+        font-size: 1.2rem; 
+        font-weight: bold; 
+    }
     </style>
-    """, unsafe_allow_html=True)
-
+    """, 
+    unsafe_allow_html=True
+)
 
 
 # --- 폰트 경로 설정 ---
@@ -269,6 +299,7 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+
 
 
 
