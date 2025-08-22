@@ -55,6 +55,17 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+st.markdown('<div class="button-group">', unsafe_allow_html=True)
+
+cols = st.columns(9)  # 9개 버튼을 가로로 나눔
+for i, val in enumerate(range(-4, 5)):
+    with cols[i]:
+        if st.button(str(val), key=f"q{q['id']}_val{val}"):
+            st.session_state.responses[q['id']] = val
+            st.rerun()
+
+st.markdown('</div>', unsafe_allow_html=True)
+
 # --- 폰트 경로 설정 ---
 font_path = os.path.abspath('rgb-test/NanumGothic.ttf')
 if os.path.exists(font_path):
@@ -304,3 +315,4 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+
