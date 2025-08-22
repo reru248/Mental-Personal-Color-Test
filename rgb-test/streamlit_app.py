@@ -7,7 +7,7 @@ import io
 from PIL import Image, ImageDraw, ImageFont
 import random
 
-
+# --- CSS 스타일 정의 ---
 st.markdown(
     """
     <style>
@@ -63,7 +63,7 @@ if os.path.exists(font_path):
     plt.rc('font', family=font_name)
     plt.rcParams['axes.unicode_minus'] = False
 else:
-    st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 그래프/이미지의 한글이 깨질 수 있습니다.")
+    st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다.")
 
 # --- 종합 결과 이미지 생성 함수 ---
 def generate_result_image(hex_color, percentages, descriptions, font_path):
@@ -125,36 +125,20 @@ def generate_result_image(hex_color, percentages, descriptions, font_path):
     img.save(buffer, format="PNG")
     return buffer.getvalue()
 
-
-# --- [핵심 수정] description_blocks를 직접 정의하는 대신, 파일에서 로드 ---
+# --- description 불러오기 ---
 @st.cache_data
 def load_descriptions():
     try:
-        # descriptions.json 파일이 rgb-test 폴더 안에 있다고 가정합니다.
         file_path = os.path.join('rgb-test', 'descriptions.json')
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        st.error("`rgb-test/descriptions.json` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요.")
+        st.error("`rgb-test/descriptions.json` 파일을 찾을 수 없습니다.")
         return None
 
 description_blocks = load_descriptions()
 
-st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
-
-def get_description_index(percentage):
-    # (내용 동일)
-    if percentage <= 10: return 0
-    if percentage <= 20: return 1
-    if percentage <= 30: return 2
-    if percentage <= 40: return 3
-    if percentage <= 50: return 4
-    if percentage <= 60: return 5
-    if percentage <= 70: return 6
-    if percentage <= 80: return 7
-    if percentage <= 90: return 8
-    return 9
-
+# --- 질문 로드 ---
 @st.cache_data
 def load_and_balance_questions():
     try:
@@ -162,7 +146,7 @@ def load_and_balance_questions():
         with open(file_path, 'r', encoding='utf-8') as f:
             questions_data = json.load(f)
     except FileNotFoundError:
-        st.error("`rgb-test/questions.json` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요.")
+        st.error("`rgb-test/questions.json` 파일을 찾을 수 없습니다.")
         return None
 
     initial_question_list = []
@@ -196,13 +180,14 @@ def load_and_balance_questions():
         
     return balanced_list
 
-# --- 앱 실행 로직 ---
+# --- 앱 실행 ---
+st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
+
 question_list = load_and_balance_questions()
 
 st.title("🧠 퍼스널컬러 심리검사")
 st.markdown("---")
 
-# description_blocks가 제대로 로드되었는지 확인 후 앱 실행
 if question_list and description_blocks:
     total_questions = len(question_list)
 
@@ -228,11 +213,13 @@ if question_list and description_blocks:
         with label_cols[2]:
             st.markdown("<p style='text-align: right; font-weight: bold; color: #555;'>그렇다 ⟶</p>", unsafe_allow_html=True)
 
-        button_cols = st.columns(9)
-        for i, val in enumerate(range(-4, 5)):
-            if button_cols[i].button(str(val), key=f"q{q['id']}_val{val}"):
+        # --- 버튼 블록 (9개 한 줄) ---
+        st.markdown('<div class="button-group">', unsafe_allow_html=True)
+        for val in range(-4, 5):
+            if st.button(str(val), key=f"q{q['id']}_val{val}"):
                 st.session_state.responses[q['id']] = val
                 st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
     
     elif len(st.session_state.responses) == total_questions and total_questions > 0:
         st.balloons()
@@ -280,6 +267,18 @@ if question_list and description_blocks:
         
         st.markdown("---")
 
+        def get_description_index(percentage):
+            if percentage <= 10: return 0
+            if percentage <= 20: return 1
+            if percentage <= 30: return 2
+            if percentage <= 40: return 3
+            if percentage <= 50: return 4
+            if percentage <= 60: return 5
+            if percentage <= 70: return 6
+            if percentage <= 80: return 7
+            if percentage <= 90: return 8
+            return 9
+
         r_index = get_description_index(percentages.get('R', 0))
         g_index = get_description_index(percentages.get('G', 0))
         b_index = get_description_index(percentages.get('B', 0))
@@ -305,13 +304,3 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
-
-
-
-
-
-
-
-
-
-
