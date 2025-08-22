@@ -7,6 +7,7 @@ import io
 from PIL import Image, ImageDraw, ImageFont
 import random
 
+
 st.markdown(
     """
     <style>
@@ -24,24 +25,30 @@ st.markdown(
     .button-group {
         display: flex;
         justify-content: center;   /* 중앙 정렬 */
-        gap: 4px;                  /* 버튼 사이 간격 최소화 */
-        background-color: #ffffff; 
-        border-radius: 12px;       
-        padding: 8px 10px;         
-        margin-top: 10px;
+        margin-top: 15px;
+        margin-bottom: 20px;
     }
     .button-group button {
-        width: 80px;               /* 버튼 가로폭 키움 */
-        height: 60px;              /* 버튼 세로 크기 */
-        font-size: 1.2rem; 
-        font-weight: bold; 
-        border-radius: 6px; 
-        border: 2px solid #e0e0e0;
-        margin: 0;                 /* 버튼 기본 여백 제거 */
+        flex: 1;                   /* 버튼 크기 균등 */
+        height: 60px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        border: 1px solid #ccc;
+        margin: 0;                 /* 버튼 간격 제거 */
+        border-radius: 0;          /* 기본: 각진 모서리 */
     }
+    /* 왼쪽 끝 버튼만 둥글게 */
+    .button-group button:first-child {
+        border-radius: 8px 0 0 8px;
+    }
+    /* 오른쪽 끝 버튼만 둥글게 */
+    .button-group button:last-child {
+        border-radius: 0 8px 8px 0;
+    }
+    /* hover 효과 */
     .button-group button:hover {
-        border-color: #457B9D; 
-        color: #457B9D; 
+        border-color: #457B9D;
+        color: #457B9D;
     }
     </style>
     """, 
@@ -298,6 +305,7 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+
 
 
 
