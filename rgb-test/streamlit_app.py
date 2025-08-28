@@ -35,7 +35,7 @@ st.markdown(
         font-size: 1.2rem;
         font-weight: bold;
         border: 1px solid #ccc;
-        border-radius: 0;   /* 각 버튼을 직사각형으로 */
+        border-radius: 12px;   /* 각 버튼을 직사각형으로 */
         margin: 0;
     }
     div[data-testid="stButton"] > button:hover {
@@ -297,6 +297,7 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+
 
 
 
