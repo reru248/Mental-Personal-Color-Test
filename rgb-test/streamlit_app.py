@@ -7,7 +7,7 @@ import io
 from PIL import Image, ImageDraw, ImageFont
 import random
 
-# --- [수정] 안정성을 높인 CSS 스타일 ---
+# --- CSS 스타일 ---
 st.markdown("""
 <style>
 /* 질문 텍스트 박스 */
@@ -83,9 +83,9 @@ if os.path.exists(font_path):
 else:
     st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 그래프/이미지의 한글이 깨질 수 있습니다.")
 
-# --- [수정] 다차원 결과용 이미지 생성 함수 ---
+# --- 다차원 결과용 이미지 생성 함수 ---
 def generate_result_image(results, descriptions, font_path):
-    img_width, img_height = 900, 2200  # 높이를 더 넉넉하게 조정
+    img_width, img_height = 900, 2200
     img = Image.new("RGB", (img_width, img_height), color="#FDFDFD")
     draw = ImageDraw.Draw(img)
 
@@ -193,11 +193,28 @@ question_list = get_balanced_questions(all_questions)
 
 st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
 
+# --- [수정] SyntaxError를 해결한 함수 ---
 def get_description_index(percentage):
-    if percentage <= 10: return 0; # ... (기존과 동일)
-    if percentage <= 20: return 1; if percentage <= 30: return 2; if percentage <= 40: return 3
-    if percentage <= 50: return 4; if percentage <= 60: return 5; if percentage <= 70: return 6
-    if percentage <= 80: return 7; if percentage <= 90: return 8; return 9
+    if percentage <= 10:
+        return 0
+    elif percentage <= 20:
+        return 1
+    elif percentage <= 30:
+        return 2
+    elif percentage <= 40:
+        return 3
+    elif percentage <= 50:
+        return 4
+    elif percentage <= 60:
+        return 5
+    elif percentage <= 70:
+        return 6
+    elif percentage <= 80:
+        return 7
+    elif percentage <= 90:
+        return 8
+    else:
+        return 9
 
 # --- 앱 실행 로직 ---
 st.title("🧠 퍼스널컬러 심리검사")
@@ -220,7 +237,6 @@ if question_list and description_blocks:
         with label_cols[0]: st.markdown("<p style='text-align: left; font-weight: bold; color: #555;'>⟵ 그렇지 않다</p>", unsafe_allow_html=True)
         with label_cols[2]: st.markdown("<p style='text-align: right; font-weight: bold; color: #555;'>그렇다 ⟶</p>", unsafe_allow_html=True)
         
-        # --- [수정] 안정적인 버튼 렌더링 방식 ---
         cols = st.columns(9)
         for i, val in enumerate(range(-4, 5)):
             with cols[i]:
