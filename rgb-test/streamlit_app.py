@@ -7,7 +7,7 @@ import io
 from PIL import Image, ImageDraw, ImageFont
 import random
 
-# --- CSS 스타일 ---
+# --- [수정] 안정성을 위해 버튼 CSS를 가장 단순한 형태로 되돌립니다 ---
 st.markdown("""
 <style>
 /* 질문 텍스트 박스 */
@@ -27,42 +27,21 @@ st.markdown("""
     margin: 0;
 }
 
-/* 버튼들을 감싸는 Streamlit의 columns 컨테이너 자체를 중앙 정렬 */
-div[data-testid="stHorizontalBlock"] {
-    justify-content: center;
-}
-
-/* 개별 버튼 스타일 */
+/* 개별 버튼 기본 스타일 (안정적인 버전) */
 div[data-testid="stButton"] > button {
-    width: 70px;
-    height: 70px;
+    width: 100%; /* 컬럼 너비에 꽉 차도록 설정 */
+    height: 55px;
     font-size: 1.2rem;
     font-weight: bold;
-    border: 1px solid #ccc;
-    border-radius: 0; /* 기본적으로 모든 버튼은 직각 */
-    border-left-width: 0; /* 왼쪽 테두리는 기본적으로 제거 (첫번째 버튼 제외) */
-    margin: 0;
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
 }
-
-/* 첫 번째 버튼에만 특별한 스타일 적용 */
-div[data-testid="stHorizontalBlock"] > div:first-child div[data-testid="stButton"] > button {
-    border-top-left-radius: 8px;
-    border-bottom-left-radius: 8px;
-    border-left-width: 1px; /* 첫 번째 버튼에만 왼쪽 테두리 표시 */
-}
-
-/* 마지막 버튼에만 특별한 스타일 적용 */
-div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"] > button {
-    border-top-right-radius: 8px;
-    border-bottom-right-radius: 8px;
-}
-
 div[data-testid="stButton"] > button:hover {
     border-color: #457B9D;
     color: #457B9D;
-    background-color: #f0f2f6;
 }
 
+/* 다운로드 버튼 스타일 */
 div[data-testid="stDownloadButton"] > button {
     width: 100%;
     height: 55px;
@@ -98,7 +77,6 @@ def generate_result_image(results, descriptions, font_path):
         title_font, world_font, text_font_bold, text_font = [ImageFont.load_default() for _ in range(4)]
 
     draw.text((img_width / 2, 60), "퍼스널컬러 심리검사 결과", font=title_font, fill="black", anchor="mm")
-
     y_cursor = 150
 
     def draw_multiline_text_by_bullet(text, y_start, width_limit):
@@ -174,13 +152,13 @@ def get_balanced_questions(all_questions):
 
     balanced_list = []
     for world in "ias":
-        r_count = min(len(typed_questions[f'RP{world}']), len(typed_questions[f'RS{world}']))
-        g_count = min(len(typed_questions[f'GP{world}']), len(typed_questions[f'GS{world}']))
-        b_count = min(len(typed_questions[f'BP{world}']), len(typed_questions[f'BS{world}']))
+        r_count = min(len(typed_questions.get(f'RP{world}', [])), len(typed_questions.get(f'RS{world}', [])))
+        g_count = min(len(typed_questions.get(f'GP{world}', [])), len(typed_questions.get(f'GS{world}', [])))
+        b_count = min(len(typed_questions.get(f'BP{world}', [])), len(typed_questions.get(f'BS{world}', [])))
 
-        balanced_list.extend(typed_questions[f'RP{world}'][:r_count] + typed_questions[f'RS{world}'][:r_count])
-        balanced_list.extend(typed_questions[f'GP{world}'][:g_count] + typed_questions[f'GS{world}'][:g_count])
-        balanced_list.extend(typed_questions[f'BP{world}'][:b_count] + typed_questions[f'BS{world}'][:b_count])
+        balanced_list.extend(typed_questions.get(f'RP{world}', [])[:r_count] + typed_questions.get(f'RS{world}', [])[:r_count])
+        balanced_list.extend(typed_questions.get(f'GP{world}', [])[:g_count] + typed_questions.get(f'GS{world}', [])[:g_count])
+        balanced_list.extend(typed_questions.get(f'BP{world}', [])[:b_count] + typed_questions.get(f'BS{world}', [])[:b_count])
     
     random.shuffle(balanced_list)
     for i, q in enumerate(balanced_list): q['id'] = i + 1
@@ -193,28 +171,17 @@ question_list = get_balanced_questions(all_questions)
 
 st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
 
-# --- [수정] SyntaxError를 해결한 함수 ---
 def get_description_index(percentage):
-    if percentage <= 10:
-        return 0
-    elif percentage <= 20:
-        return 1
-    elif percentage <= 30:
-        return 2
-    elif percentage <= 40:
-        return 3
-    elif percentage <= 50:
-        return 4
-    elif percentage <= 60:
-        return 5
-    elif percentage <= 70:
-        return 6
-    elif percentage <= 80:
-        return 7
-    elif percentage <= 90:
-        return 8
-    else:
-        return 9
+    if percentage <= 10: return 0
+    elif percentage <= 20: return 1
+    elif percentage <= 30: return 2
+    elif percentage <= 40: return 3
+    elif percentage <= 50: return 4
+    elif percentage <= 60: return 5
+    elif percentage <= 70: return 6
+    elif percentage <= 80: return 7
+    elif percentage <= 90: return 8
+    else: return 9
 
 # --- 앱 실행 로직 ---
 st.title("🧠 퍼스널컬러 심리검사")
@@ -253,20 +220,34 @@ if question_list and description_blocks:
         question_map = {q['id']: q for q in question_list}
         for q_id, value in st.session_state.responses.items():
             q_type = question_map[q_id]['type']
-            scores[q_type] += value
+            if q_type in scores:
+                scores[q_type] += value
 
         results = {}
         worlds = {'i': '내면 세계', 'a': '주변 세계', 's': '사회'}
         
         for world_code, world_title in worlds.items():
+            base_r = scores.get(f'RP{world_code}', 0) - scores.get(f'RS{world_code}', 0)
+            base_g = scores.get(f'GP{world_code}', 0) - scores.get(f'GS{world_code}', 0)
+            base_b = scores.get(f'BP{world_code}', 0) - scores.get(f'BS{world_code}', 0)
+            
+            # 문항 수에 기반한 정규화 (예: 내면(i) R은 6문항*4점=24점이 최대)
+            # 이 부분은 최대/최소 점수에 따라 달라져야 하지만, 우선 128 기준으로 계산
             final_scores = {
-                'R': 128 + scores[f'RP{world_code}'] - scores[f'RS{world_code}'],
-                'G': 128 + scores[f'GP{world_code}'] - scores[f'GS{world_code}'],
-                'B': 128 + scores[f'BP{world_code}'] - scores[f'BS{world_code}']
+                'R': 128 + base_r * (256 / (6 * 8)), # 6문항, -4~4점
+                'G': 128 + base_g * (256 / (6 * 8)),
+                'B': 128 + base_b * (256 / (6 * 8)),
             }
+            if world_code in ['a', 's']: # 주변, 사회 세계는 5문항
+                final_scores = {
+                    'R': 128 + base_r * (256 / (5 * 8)),
+                    'G': 128 + base_g * (256 / (5 * 8)),
+                    'B': 128 + base_b * (256 / (5 * 8)),
+                }
+
             absolute_scores = {k: max(v, 0) for k, v in final_scores.items()}
             percentages = {k: round((v / 256) * 100, 1) for k, v in absolute_scores.items()}
-            hex_color = '#{:02X}{:02X}{:02X}'.format(min(absolute_scores.get('R', 0), 255), min(absolute_scores.get('G', 0), 255), min(absolute_scores.get('B', 0), 255))
+            hex_color = '#{:02X}{:02X}{:02X}'.format(int(min(absolute_scores.get('R', 0), 255)), int(min(absolute_scores.get('G', 0), 255)), int(min(absolute_scores.get('B', 0), 255)))
             indices = { k: get_description_index(p) for k, p in percentages.items() }
 
             results[world_code] = {
