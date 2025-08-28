@@ -30,7 +30,7 @@ st.markdown(
         margin-bottom: 20px;
     }
     div[data-testid="stButton"] > button {
-        width: 70px; 
+        width: 100px; 
         height: 70px;
         font-size: 1.2rem;
         font-weight: bold;
@@ -297,6 +297,7 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+
 
 
 
