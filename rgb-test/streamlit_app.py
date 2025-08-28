@@ -21,7 +21,7 @@ st.markdown(
         background-color: #f0f2f6; 
         margin-bottom: 1rem; 
         flex-direction: column;
-        font-size: 1rem;
+        font-size: 0.6rem;
     }
     .button-group {
         display: flex;
@@ -297,6 +297,7 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+
 
 
 
