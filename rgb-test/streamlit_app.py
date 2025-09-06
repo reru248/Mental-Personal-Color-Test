@@ -6,46 +6,19 @@ import os
 import io
 from PIL import Image, ImageDraw, ImageFont
 import random
+import math
 
-# --- 스타일 CSS ---
-st.markdown(
-    """
-    <style>
-    .question-box { 
-        min-height: 100px; 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        padding: 1rem; 
-        border-radius: 10px; 
-        background-color: #f0f2f6; 
-        margin-bottom: 1rem; 
-        flex-direction: column;
-        font-size: 0.3rem;
-    }
-    .button-group {
-        display: flex;
-        justify-content: center;   /* 중앙 정렬 */
-        margin-top: 15px;
-        margin-bottom: 20px;
-    }
-    div[data-testid="stButton"] > button {
-        width: 100px; 
-        height: 70px;
-        font-size: 1.2rem;
-        font-weight: bold;
-        border: 1px solid #ccc;
-        border-radius: 12px;   /* 각 버튼을 직사각형으로 */
-        margin: 0;
-    }
-    div[data-testid="stButton"] > button:hover {
-        border-color: #457B9D;
-        color: #457B9D;
-    }
-    </style>
-    """, 
-    unsafe_allow_html=True
-)
+# --- CSS 스타일 (안정적인 기본 버튼) ---
+st.markdown("""
+<style>
+.question-box { min-height: 100px; display: flex; align-items: center; justify-content: center; padding: 1rem; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 1rem; }
+.question-box h2 { text-align: center; font-size: 1.7rem; margin: 0; }
+div[data-testid="stButton"] > button { width: 100%; height: 55px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; border: 2px solid #e0e0e0; }
+div[data-testid="stButton"] > button:hover { border-color: #457B9D; color: #457B9D; }
+div[data-testid="stDownloadButton"] > button { width: 100%; height: 55px; font-size: 1.2rem; font-weight: bold; }
+</style>
+""", unsafe_allow_html=True)
+
 
 # --- 폰트 경로 설정 ---
 font_path = os.path.abspath('rgb-test/NanumGothic.ttf')
@@ -57,34 +30,42 @@ if os.path.exists(font_path):
 else:
     st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 그래프/이미지의 한글이 깨질 수 있습니다.")
 
-# --- 종합 결과 이미지 생성 함수 ---
-def generate_result_image(hex_color, percentages, descriptions, font_path):
-    img_width, img_height = 800, 1600
+# --- 종합 결과 이미지 생성 함수 (종합 결과 기준) ---
+def generate_result_image(comprehensive_result, font_path):
+    img_width, img_height = 900, 1600
     img = Image.new("RGB", (img_width, img_height), color="#FDFDFD")
     draw = ImageDraw.Draw(img)
+
     try:
-        title_font = ImageFont.truetype(font_path, 36)
+        title_font = ImageFont.truetype(font_path, 40)
         text_font_bold = ImageFont.truetype(font_path, 22)
         text_font = ImageFont.truetype(font_path, 18)
     except IOError:
         title_font, text_font_bold, text_font = ImageFont.load_default(), ImageFont.load_default(), ImageFont.load_default()
+
+    draw.text((img_width / 2, 60), "퍼스널컬러 심리검사 종합 결과", font=title_font, fill="black", anchor="mm")
     
-    draw.text((400, 50), "퍼스널컬러 심리검사 결과", font=title_font, fill="black", anchor="mm")
-    draw.rectangle([100, 100, 700, 250], fill=hex_color, outline="gray", width=2)
-    draw.text((400, 280), f"나의 고유 성격 색상: {hex_color}", font=text_font_bold, fill="black", anchor="mm")
+    hex_color = comprehensive_result['hex']
+    percentages = comprehensive_result['percentages']
+    descriptions = comprehensive_result['descriptions']
+
+    draw.rectangle([100, 120, 800, 270], fill=hex_color, outline="gray", width=2)
+    draw.text((img_width / 2, 300), f"나의 종합 성격 색상: {hex_color}", font=text_font_bold, fill="black", anchor="mm")
     
-    y_start_bars = 350
+    y_start_bars = 380
     draw.text((100, y_start_bars), f"진취형(R): {percentages['R']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_start_bars + 35, 100 + (percentages['R'] * 6), y_start_bars + 55], fill='#E63946')
-    draw.text((100, y_start_bars + 70), f"중재형(G): {percentages['G']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_start_bars + 105, 100 + (percentages['G'] * 6), y_start_bars + 125], fill='#7FB069')
-    draw.text((100, y_start_bars + 140), f"신중형(B): {percentages['B']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_start_bars + 175, 100 + (percentages['B'] * 6), y_start_bars + 200], fill='#457B9D')
+    draw.rectangle([100, y_start_bars + 35, 100 + (percentages['R'] * 7), y_start_bars + 55], fill='#E63946')
+    draw.text((100, y_start_bars + 80), f"중재형(G): {percentages['G']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_start_bars + 115, 100 + (percentages['G'] * 7), y_start_bars + 135], fill='#7FB069')
+    draw.text((100, y_start_bars + 160), f"신중형(B): {percentages['B']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_start_bars + 195, 100 + (percentages['B'] * 7), y_start_bars + 215], fill='#457B9D')
     
-    y_start_desc = 580
-    draw.text((50, y_start_desc), "상세 성격 분석", font=title_font, fill="black")
+    y_cursor = y_start_bars + 280
+    draw.text((50, y_cursor), "상세 성격 분석", font=title_font, fill="black")
+    y_cursor += 80
 
     def draw_multiline_text_by_bullet(text, y_start, width_limit):
+        # (기존 함수와 동일)
         bullet_points = [p.strip() for p in text.split('•') if p.strip()]
         current_y = y_start
         for point in bullet_points:
@@ -100,108 +81,97 @@ def generate_result_image(hex_color, percentages, descriptions, font_path):
                     line_buffer = word + " "
             lines.append(line_buffer)
             for line in lines:
-                draw.text((60, current_y), line, font=text_font, fill="#333333")
+                draw.text((80, current_y), line, font=text_font, fill="#333333")
                 current_y += text_font.size + 6
             current_y += 10
         return current_y
 
-    current_y = y_start_desc + 70
-    draw.text((60, current_y), "진취형(R)에 대하여", font=text_font_bold, fill="#E63946")
-    current_y = draw_multiline_text_by_bullet(descriptions['R'], current_y + 40, img_width - 120)
-    draw.text((60, current_y), "중재형(G)에 대하여", font=text_font_bold, fill="#7FB069")
-    current_y = draw_multiline_text_by_bullet(descriptions['G'], current_y + 50, img_width - 120)
-    draw.text((60, current_y), "신중형(B)에 대하여", font=text_font_bold, fill="#457B9D")
-    draw_multiline_text_by_bullet(descriptions['B'], current_y + 50, img_width - 120)
+    y_cursor = draw_multiline_text_by_bullet(descriptions['R'], y_cursor, img_width - 120)
+    y_cursor = draw_multiline_text_by_bullet(descriptions['G'], y_cursor, img_width - 120)
+    y_cursor = draw_multiline_text_by_bullet(descriptions['B'], y_cursor, img_width - 120)
 
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     return buffer.getvalue()
 
-# --- descriptions 로드 ---
+
+# --- 데이터 로드 함수 ---
 @st.cache_data
-def load_descriptions():
+def load_data(file_name):
     try:
-        file_path = os.path.join('rgb-test', 'descriptions.json')
+        file_path = os.path.join('rgb-test', file_name)
         with open(file_path, 'r', encoding='utf-8') as f:
             return json.load(f)
     except FileNotFoundError:
-        st.error("`rgb-test/descriptions.json` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요.")
+        st.error(f"`rgb-test/{file_name}` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요.")
         return None
 
-description_blocks = load_descriptions()
+# --- 질문리스트 균형 맞추기 ---
+@st.cache_data
+def get_balanced_questions(all_questions):
+    if not all_questions: return []
+    initial_question_list = all_questions.get('questions', [])
+    typed_questions = { f"{main}{sub}{world}" : [] for main in "RGB" for sub in "PS" for world in "ias" }
+    for q in initial_question_list:
+        if q['type'] in typed_questions: typed_questions[q['type']].append(q)
+    
+    balanced_list = []
+    for world in "ias":
+        r_count = min(len(typed_questions.get(f'RP{world}', [])), len(typed_questions.get(f'RS{world}', [])))
+        g_count = min(len(typed_questions.get(f'GP{world}', [])), len(typed_questions.get(f'GS{world}', [])))
+        b_count = min(len(typed_questions.get(f'BP{world}', [])), len(typed_questions.get(f'BS{world}', [])))
+        
+        balanced_list.extend(typed_questions.get(f'RP{world}', [])[:r_count] + typed_questions.get(f'RS{world}', [])[:r_count])
+        balanced_list.extend(typed_questions.get(f'GP{world}', [])[:g_count] + typed_questions.get(f'GS{world}', [])[:g_count])
+        balanced_list.extend(typed_questions.get(f'BP{world}', [])[:b_count] + typed_questions.get(f'BS{world}', [])[:b_count])
+        
+    random.shuffle(balanced_list)
+    for i, q in enumerate(balanced_list): q['id'] = i + 1
+    return balanced_list
+
+# --- 데이터 로드 ---
+description_blocks = load_data('descriptions.json')
+all_questions = load_data('questions.json')
+question_list = get_balanced_questions(all_questions)
 
 st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
 
-def get_description_index(percentage):
+# --- [수정] 2가지 인덱스 계산 함수 ---
+def get_comprehensive_index(percentage):
+    # 0~100% 점수를 10개 구간으로 나눠 인덱스(0~9) 반환 (종합 결과용)
     if percentage <= 10: return 0
-    if percentage <= 20: return 1
-    if percentage <= 30: return 2
-    if percentage <= 40: return 3
-    if percentage <= 50: return 4
-    if percentage <= 60: return 5
-    if percentage <= 70: return 6
-    if percentage <= 80: return 7
-    if percentage <= 90: return 8
-    return 9
+    elif percentage <= 20: return 1
+    elif percentage <= 30: return 2
+    elif percentage <= 40: return 3
+    elif percentage <= 50: return 4
+    elif percentage <= 60: return 5
+    elif percentage <= 70: return 6
+    elif percentage <= 80: return 7
+    elif percentage <= 90: return 8
+    else: return 9
 
-@st.cache_data
-def load_and_balance_questions():
-    try:
-        file_path = os.path.join('rgb-test', 'questions.json')
-        with open(file_path, 'r', encoding='utf-8') as f:
-            questions_data = json.load(f)
-    except FileNotFoundError:
-        st.error("`rgb-test/questions.json` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요.")
-        return None
-
-    initial_question_list = []
-    if isinstance(questions_data, dict) and 'questions' in questions_data:
-        initial_question_list = questions_data['questions']
-    elif isinstance(questions_data, list):
-        initial_question_list = questions_data
-    else:
-        st.error("questions.json 파일의 형식이 올바르지 않습니다.")
-        return None
-
-    typed_questions = {'RP': [], 'RS': [], 'GP': [], 'GS': [], 'BP': [], 'BS': []}
-    for q in initial_question_list:
-        if q['type'] in typed_questions:
-            typed_questions[q['type']].append(q)
-
-    r_count = min(len(typed_questions['RP']), len(typed_questions['RS']))
-    g_count = min(len(typed_questions['GP']), len(typed_questions['GS']))
-    b_count = min(len(typed_questions['BP']), len(typed_questions['BS']))
-
-    balanced_list = (
-        typed_questions['RP'][:r_count] + typed_questions['RS'][:r_count] +
-        typed_questions['GP'][:g_count] + typed_questions['GS'][:g_count] +
-        typed_questions['BP'][:b_count] + typed_questions['BS'][:b_count]
-    )
+def get_world_description_index(score, world_type):
+    # 각 세계별 점수(-48~48 또는 -40~40)를 10개 구간으로 나눠 인덱스(0~9) 반환
+    if world_type == 'i':
+        # 내면 세계: -48 ~ +48 (총 97점 범위), 구간 크기 약 9.7
+        # 점수에 48을 더해 0~96 범위로 변환 후 9.7로 나눔
+        index = math.floor((score + 48) / 9.7)
+    else: # 'a' or 's'
+        # 주변/사회 세계: -40 ~ +40 (총 81점 범위), 구간 크기 약 8.1
+        # 점수에 40을 더해 0~80 범위로 변환 후 8.1로 나눔
+        index = math.floor((score + 40) / 8.1)
     
-    random.shuffle(balanced_list)
-    
-    for i, q in enumerate(balanced_list):
-        q['id'] = i + 1
-        
-    return balanced_list
+    return min(max(index, 0), 9) # 결과가 0~9 범위를 벗어나지 않도록 보정
 
 # --- 앱 실행 로직 ---
-question_list = load_and_balance_questions()
-
 st.title("🧠 퍼스널컬러 심리검사")
 st.markdown("---")
 
 if question_list and description_blocks:
     total_questions = len(question_list)
-
-    if 'responses' not in st.session_state:
-        st.session_state.responses = {}
+    if 'responses' not in st.session_state: st.session_state.responses = {}
     
-    next_question = None
-    for q in question_list:
-        if q['id'] not in st.session_state.responses:
-            next_question = q
-            break
+    next_question = next((q for q in question_list if q['id'] not in st.session_state.responses), None)
 
     progress = len(st.session_state.responses) / total_questions if total_questions > 0 else 0
     st.progress(progress, text=f"진행률: {len(st.session_state.responses)} / {total_questions}")
@@ -211,96 +181,108 @@ if question_list and description_blocks:
         st.markdown(f"<div class='question-box'><h2>Q{q['id']}. {q['text']}</h2></div>", unsafe_allow_html=True)
         
         label_cols = st.columns([1, 5, 1])
-        with label_cols[0]:
-            st.markdown("<p style='text-align: left; font-weight: bold; color: #555;'>⟵ 그렇지 않다</p>", unsafe_allow_html=True)
-        with label_cols[2]:
-            st.markdown("<p style='text-align: right; font-weight: bold; color: #555;'>그렇다 ⟶</p>", unsafe_allow_html=True)
-
-        # --- [수정된 버튼 영역] ---
-        st.markdown('<div class="button-group">', unsafe_allow_html=True)
+        with label_cols[0]: st.markdown("<p style='text-align: left; font-weight: bold; color: #555;'>⟵ 그렇지 않다</p>", unsafe_allow_html=True)
+        with label_cols[2]: st.markdown("<p style='text-align: right; font-weight: bold; color: #555;'>그렇다 ⟶</p>", unsafe_allow_html=True)
+        
         cols = st.columns(9)
         for i, val in enumerate(range(-4, 5)):
             with cols[i]:
                 if st.button(str(val), key=f"q{q['id']}_val{val}"):
                     st.session_state.responses[q['id']] = val
                     st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
     
     elif len(st.session_state.responses) == total_questions and total_questions > 0:
         st.balloons()
         st.success("검사가 완료되었습니다! 아래에서 결과를 확인하세요. 🎉")
         st.markdown("---")
         
-        scores = {'RP': 0, 'RS': 0, 'GP': 0, 'GS': 0, 'BP': 0, 'BS': 0}
-        
+        scores = { f"{main}{sub}{world}" : 0 for main in "RGB" for sub in "PS" for world in "ias" }
         question_map = {q['id']: q for q in question_list}
         for q_id, value in st.session_state.responses.items():
             q_type = question_map[q_id]['type']
-            scores[q_type] += value
+            if q_type in scores:
+                scores[q_type] += value
 
-        final_scores = {
-            'R': 128 + scores['RP'] - scores['RS'],
-            'G': 128 + scores['GP'] - scores['GS'],
-            'B': 128 + scores['BP'] - scores['BS']
+        # --- 1. 종합 결과 계산 ---
+        total_score_R = (scores['RPi']+scores['RPa']+scores['RPs']) - (scores['RSi']+scores['RSa']+scores['RSs'])
+        total_score_G = (scores['GPi']+scores['GPa']+scores['GPs']) - (scores['GSi']+scores['GSa']+scores['GSs'])
+        total_score_B = (scores['BPi']+scores['BPa']+scores['BPs']) - (scores['BSi']+scores['BSa']+scores['BSs'])
+        
+        # 종합 점수 정규화 (전체 문항 16개씩, -64 ~ +64)
+        comp_final = {
+            'R': 128 + total_score_R * (256 / 128),
+            'G': 128 + total_score_G * (256 / 128),
+            'B': 128 + total_score_B * (256 / 128)
         }
-        
-        absolute_scores = {k: max(v, 0) for k, v in final_scores.items()}
-        percentages = {k: round((v / 256) * 100, 1) for k, v in absolute_scores.items()}
-        hex_color = '#{:02X}{:02X}{:02X}'.format(min(absolute_scores.get('R', 0), 255), min(absolute_scores.get('G', 0), 255), min(absolute_scores.get('B', 0), 255))
+        comp_abs = {k: max(v, 0) for k, v in comp_final.items()}
+        comp_perc = {k: round((v / 256) * 100, 1) for k, v in comp_abs.items()}
+        comp_hex = '#{:02X}{:02X}{:02X}'.format(int(min(comp_abs.get('R', 0), 255)), int(min(comp_abs.get('G', 0), 255)), int(min(comp_abs.get('B', 0), 255)))
+        comp_indices = { k: get_comprehensive_index(p) for k, p in comp_perc.items() }
 
-        st.header("📈 당신의 성격 분석 결과")
-        col1, col2 = st.columns([1, 1])
-        
-        with col1:
-            st.markdown("### 🎨 당신의 고유 성격 색상")
-            st.markdown(f"<div style='width: 100%; height: 200px; background-color: {hex_color}; border: 2px solid #ccc; border-radius: 12px;'></div>", unsafe_allow_html=True)
-            st.markdown(f"<p style='text-align: center; font-size: 24px; font-weight: bold; margin-top: 10px;'>{hex_color}</p>", unsafe_allow_html=True)
+        comprehensive_result = {
+            'title': '종합', 'percentages': comp_perc, 'hex': comp_hex,
+            'descriptions': { k: description_blocks['comprehensive'][k][comp_indices[k]] for k in "RGB" }
+        }
+
+        # --- 2. 세계별 결과 계산 ---
+        world_results = {}
+        worlds_map = {'i': '내면 세계', 'a': '주변 세계', 's': '사회'}
+        for code, title in worlds_map.items():
+            score_R = scores[f'RP{code}'] - scores[f'RS{code}']
+            score_G = scores[f'GP{code}'] - scores[f'GS{code}']
+            score_B = scores[f'BP{code}'] - scores[f'BS{code}']
+
+            index_R = get_world_description_index(score_R, code)
+            index_G = get_world_description_index(score_G, code)
+            index_B = get_world_description_index(score_B, code)
             
+            world_results[code] = {
+                'title': title,
+                'description_R': description_blocks[code.replace('i', 'inner').replace('a', 'relationships').replace('s', 'social')]['R'][index_R],
+                'description_G': description_blocks[code.replace('i', 'inner').replace('a', 'relationships').replace('s', 'social')]['G'][index_G],
+                'description_B': description_blocks[code.replace('i', 'inner').replace('a', 'relationships').replace('s', 'social')]['B'][index_B],
+            }
+
+        # --- 결과 표시 ---
+        # 1. 종합 결과 표시
+        st.header(f"📈 당신의 종합 분석 결과")
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.markdown("### 🎨 종합 성격 색상")
+            st.markdown(f"<div style='width: 100%; height: 200px; background-color: {comp_hex}; border: 2px solid #ccc; border-radius: 12px;'></div>", unsafe_allow_html=True)
+            st.markdown(f"<p style='text-align: center; font-size: 24px; font-weight: bold; margin-top: 10px;'>{comp_hex}</p>", unsafe_allow_html=True)
         with col2:
             fig, ax = plt.subplots(figsize=(10, 5))
             st.markdown("### ✨ 유형별 강도 시각화")
-            y_labels, values = ["진취형 (R)", "중재형 (G)", "신중형 (B)"], [percentages.get('R', 0), percentages.get('G', 0), percentages.get('B', 0)]
+            y_labels, values = ["진취형 (R)", "중재형 (G)", "신중형 (B)"], [comp_perc[k] for k in "RGB"]
             colors = ['#E63946', '#7FB069', '#457B9D']
             bars = ax.barh(y_labels, values, color=colors, height=0.6)
-            ax.spines[['top', 'right', 'left', 'bottom']].set_visible(False)
-            ax.xaxis.set_ticks_position('none'); ax.yaxis.set_ticks_position('none')
-            ax.set_xticklabels([]); ax.set_yticklabels(y_labels, fontsize=14); ax.set_xlim(0, 115)
+            ax.set_xlim(0, 115)
+            ax.spines[['top', 'right', 'left', 'bottom']].set_visible(False); ax.xaxis.set_ticks_position('none'); ax.yaxis.set_ticks_position('none')
+            ax.set_xticklabels([]); ax.set_yticklabels(y_labels, fontsize=14)
             for bar in bars:
-                width = bar.get_width()
-                ax.text(width + 2, bar.get_y() + bar.get_height() / 2, f'{width}%', ha='left', va='center', fontsize=12)
+                width = bar.get_width(); ax.text(width + 2, bar.get_y() + bar.get_height() / 2, f'{width}%', ha='left', va='center', fontsize=12)
             st.pyplot(fig)
         
+        st.markdown("#### 📜 상세 성격 분석")
+        st.info(f"**🔴 진취형(R):** {comprehensive_result['descriptions']['R']}")
+        st.success(f"**🟢 중재형(G):** {comprehensive_result['descriptions']['G']}")
+        st.warning(f"**🔵 신중형(B):** {comprehensive_result['descriptions']['B']}")
         st.markdown("---")
 
-        r_index = get_description_index(percentages.get('R', 0))
-        g_index = get_description_index(percentages.get('G', 0))
-        b_index = get_description_index(percentages.get('B', 0))
-
-        description_texts = {
-            'R': description_blocks['R'][r_index],
-            'G': description_blocks['G'][g_index],
-            'B': description_blocks['B'][b_index],
-        }
-
-        image_buffer = generate_result_image(hex_color, percentages, description_texts, font_path)
+        # 2. 세계별 요약 결과 표시
+        st.header("📑 세계별 요약 분석")
+        for code, data in world_results.items():
+            with st.expander(f"**당신의 {data['title']}에서는...**"):
+                st.markdown(f"**🔴 (추진력/결정/리더십):** {data['description_R']}")
+                st.markdown(f"**🟢 (인간관계/협력/의사소통):** {data['description_G']}")
+                st.markdown(f"**🔵 (사고방식/계획/판단):** {data['description_B']}")
+        st.markdown("---")
         
+        # 이미지 다운로드 버튼
+        image_buffer = generate_result_image(comprehensive_result, font_path)
         st.download_button(label="📥 종합 결과 이미지 저장하기", data=image_buffer, file_name="RGB_personality_result.png", mime="image/png")
         
-        st.header("📜 상세 성격 분석")
-        st.markdown("### 🔴 진취형(R)에 대하여")
-        st.info(description_blocks['R'][r_index])
-        st.markdown("### 🟢 중재형(G)에 대하여")
-        st.success(description_blocks['G'][g_index])
-        st.markdown("### 🔵 신중형(B)에 대하여")
-        st.warning(description_blocks['B'][b_index])
-
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
-
-
-
-
-
-
-
