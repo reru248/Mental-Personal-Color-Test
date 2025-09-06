@@ -65,7 +65,6 @@ def generate_result_image(comprehensive_result, font_path):
     y_cursor += 80
 
     def draw_multiline_text_by_bullet(text, y_start, width_limit):
-        # (기존 함수와 동일)
         bullet_points = [p.strip() for p in text.split('•') if p.strip()]
         current_y = y_start
         for point in bullet_points:
@@ -136,9 +135,8 @@ question_list = get_balanced_questions(all_questions)
 
 st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
 
-# --- [수정] 2가지 인덱스 계산 함수 ---
+# --- 인덱스 계산 함수들 ---
 def get_comprehensive_index(percentage):
-    # 0~100% 점수를 10개 구간으로 나눠 인덱스(0~9) 반환 (종합 결과용)
     if percentage <= 10: return 0
     elif percentage <= 20: return 1
     elif percentage <= 30: return 2
@@ -151,17 +149,11 @@ def get_comprehensive_index(percentage):
     else: return 9
 
 def get_world_description_index(score, world_type):
-    # 각 세계별 점수(-48~48 또는 -40~40)를 10개 구간으로 나눠 인덱스(0~9) 반환
     if world_type == 'i':
-        # 내면 세계: -48 ~ +48 (총 97점 범위), 구간 크기 약 9.7
-        # 점수에 48을 더해 0~96 범위로 변환 후 9.7로 나눔
         index = math.floor((score + 48) / 9.7)
-    else: # 'a' or 's'
-        # 주변/사회 세계: -40 ~ +40 (총 81점 범위), 구간 크기 약 8.1
-        # 점수에 40을 더해 0~80 범위로 변환 후 8.1로 나눔
+    else:
         index = math.floor((score + 40) / 8.1)
-    
-    return min(max(index, 0), 9) # 결과가 0~9 범위를 벗어나지 않도록 보정
+    return min(max(index, 0), 9)
 
 # --- 앱 실행 로직 ---
 st.title("🧠 퍼스널컬러 심리검사")
@@ -208,11 +200,10 @@ if question_list and description_blocks:
         total_score_G = (scores['GPi']+scores['GPa']+scores['GPs']) - (scores['GSi']+scores['GSa']+scores['GSs'])
         total_score_B = (scores['BPi']+scores['BPa']+scores['BPs']) - (scores['BSi']+scores['BSa']+scores['BSs'])
         
-        # 종합 점수 정규화 (전체 문항 16개씩, -64 ~ +64)
         comp_final = {
-            'R': 128 + total_score_R * (256 / 128),
-            'G': 128 + total_score_G * (256 / 128),
-            'B': 128 + total_score_B * (256 / 128)
+            'R': 128 + total_score_R * 2,
+            'G': 128 + total_score_G * 2,
+            'B': 128 + total_score_B * 2
         }
         comp_abs = {k: max(v, 0) for k, v in comp_final.items()}
         comp_perc = {k: round((v / 256) * 100, 1) for k, v in comp_abs.items()}
@@ -227,7 +218,13 @@ if question_list and description_blocks:
         # --- 2. 세계별 결과 계산 ---
         world_results = {}
         worlds_map = {'i': '내면 세계', 'a': '주변 세계', 's': '사회'}
+        
+        # [수정] 코드와 JSON 키를 매핑하는 딕셔너리
+        world_key_map = {'i': 'inner', 'a': 'relationships', 's': 'social'}
+
         for code, title in worlds_map.items():
+            world_key = world_key_map[code] # 'i' -> 'inner' 등으로 변환
+
             score_R = scores[f'RP{code}'] - scores[f'RS{code}']
             score_G = scores[f'GP{code}'] - scores[f'GS{code}']
             score_B = scores[f'BP{code}'] - scores[f'BS{code}']
@@ -238,13 +235,12 @@ if question_list and description_blocks:
             
             world_results[code] = {
                 'title': title,
-                'description_R': description_blocks[code.replace('i', 'inner').replace('a', 'relationships').replace('s', 'social')]['R'][index_R],
-                'description_G': description_blocks[code.replace('i', 'inner').replace('a', 'relationships').replace('s', 'social')]['G'][index_G],
-                'description_B': description_blocks[code.replace('i', 'inner').replace('a', 'relationships').replace('s', 'social')]['B'][index_B],
+                'description_R': description_blocks[world_key]['R'][index_R],
+                'description_G': description_blocks[world_key]['G'][index_G],
+                'description_B': description_blocks[world_key]['B'][index_B],
             }
 
         # --- 결과 표시 ---
-        # 1. 종합 결과 표시
         st.header(f"📈 당신의 종합 분석 결과")
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -270,7 +266,6 @@ if question_list and description_blocks:
         st.warning(f"**🔵 신중형(B):** {comprehensive_result['descriptions']['B']}")
         st.markdown("---")
 
-        # 2. 세계별 요약 결과 표시
         st.header("📑 세계별 요약 분석")
         for code, data in world_results.items():
             with st.expander(f"**당신의 {data['title']}에서는...**"):
@@ -279,12 +274,9 @@ if question_list and description_blocks:
                 st.markdown(f"**🔵 (사고방식/계획/판단):** {data['description_B']}")
         st.markdown("---")
         
-        # 이미지 다운로드 버튼
         image_buffer = generate_result_image(comprehensive_result, font_path)
         st.download_button(label="📥 종합 결과 이미지 저장하기", data=image_buffer, file_name="RGB_personality_result.png", mime="image/png")
         
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
-
-
