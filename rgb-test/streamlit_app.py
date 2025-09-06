@@ -15,7 +15,7 @@ st.markdown("""
 .question-box h2 { text-align: center; font-size: 1.7rem; margin: 0; }
 div[data-testid="stButton"] > button { width: 120px; height: 55px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; border: 2px solid #e0e0e0; }
 div[data-testid="stButton"] > button:hover { border-color: #457B9D; color: #457B9D; }
-div[data-testid="stDownloadButton"] > button { width: 120px; height: 55px; font-size: 1.2rem; font-weight: bold; }
+div[data-testid="stDownloadButton"] > button { width: 300px; height: 55px; font-size: 1.2rem; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -280,3 +280,4 @@ if question_list and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+
