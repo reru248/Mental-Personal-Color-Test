@@ -171,9 +171,12 @@ if question_lists and description_blocks:
         }
         title, num_questions = worlds_info[world_code]
         st.markdown(f"<div class='intro-box'><h1>{title}</h1><h2>지금부터 {title}에 관한 {num_questions}개의 질문이 시작됩니다.</h2></div>", unsafe_allow_html=True)
-        if st.button("시작하기", key=f"start_{world_code}"):
-            st.session_state.stage = f"quiz_{world_code}"
-            st.rerun()
+        cols = st.columns([1, 2, 1])  # 좌(1) : 중간(2) : 우(1)
+        with cols[1]:  # 가운데 컬럼
+            if st.button("시작하기", key=f"start_{world_code}"):
+                st.session_state.stage = f"quiz_{world_code}"
+                st.rerun()
+
 
     elif 'quiz' in current_stage:
         progress = len(st.session_state.responses) / total_questions
@@ -265,5 +268,6 @@ if question_lists and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+
 
 
