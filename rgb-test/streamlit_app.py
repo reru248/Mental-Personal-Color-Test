@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 import random
 import math
 
-# --- CSS 스타일 (안정적인 기본 버튼) ---
+# --- CSS 스타일 ---
 st.markdown("""
 <style>
 .question-box { min-height: 100px; display: flex; align-items: center; justify-content: center; padding: 1rem; border-radius: 10px; background-color: #f0f2f6; margin-bottom: 1rem; }
@@ -33,7 +33,7 @@ if os.path.exists(font_path):
 else:
     st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 그래프/이미지의 한글이 깨질 수 있습니다.")
 
-# --- 종합 결과 이미지 생성 함수 (기존과 동일) ---
+# --- 종합 결과 이미지 생성 함수 ---
 def generate_result_image(comprehensive_result, font_path):
     img_width, img_height = 900, 1600
     img = Image.new("RGB", (img_width, img_height), color="#FDFDFD")
@@ -85,7 +85,7 @@ def load_data(file_name):
     except FileNotFoundError:
         st.error(f"`rgb-test/{file_name}` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요."); return None
 
-# --- [수정] 질문리스트를 세계별로 그룹화하고 ID 부여 ---
+# --- 질문리스트 그룹화 함수 ---
 @st.cache_data
 def get_balanced_questions_grouped(all_questions_data):
     if not all_questions_data: return {}
@@ -120,33 +120,48 @@ question_lists = get_balanced_questions_grouped(all_questions_data)
 
 st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
 
-# --- 인덱스 계산 함수들 (기존과 동일) ---
+# --- [수정] 인덱스 계산 함수 (문법 오류 해결) ---
 def get_comprehensive_index(percentage):
-    if percentage <= 10: return 0
-    elif percentage <= 20: return 1; elif percentage <= 30: return 2; elif percentage <= 40: return 3
-    elif percentage <= 50: return 4; elif percentage <= 60: return 5; elif percentage <= 70: return 6
-    elif percentage <= 80: return 7; elif percentage <= 90: return 8; else: return 9
+    if percentage <= 10:
+        return 0
+    elif percentage <= 20:
+        return 1
+    elif percentage <= 30:
+        return 2
+    elif percentage <= 40:
+        return 3
+    elif percentage <= 50:
+        return 4
+    elif percentage <= 60:
+        return 5
+    elif percentage <= 70:
+        return 6
+    elif percentage <= 80:
+        return 7
+    elif percentage <= 90:
+        return 8
+    else:
+        return 9
+
 def get_world_description_index(score, world_type):
-    if world_type == 'i': index = math.floor((score + 48) / 9.7)
-    else: index = math.floor((score + 40) / 8.1)
+    if world_type == 'i':
+        index = math.floor((score + 48) / 9.7)
+    else:
+        index = math.floor((score + 40) / 8.1)
     return min(max(index, 0), 9)
 
 # --- 앱 실행 로직 ---
 st.title("🧠 퍼스널컬러 심리검사")
 st.markdown("---")
 
-# [수정] 세션 상태 초기화
 if 'stage' not in st.session_state: st.session_state.stage = 'intro_i'
 if 'responses' not in st.session_state: st.session_state.responses = {}
 
 if question_lists and description_blocks:
     all_questions_flat = question_lists['i'] + question_lists['a'] + question_lists['s']
     total_questions = len(all_questions_flat)
-
-    # --- [수정] 단계별 화면 표시 ---
     current_stage = st.session_state.stage
 
-    # 1. 안내 페이지 표시
     if 'intro' in current_stage:
         world_code = current_stage.split('_')[1]
         worlds_info = {
@@ -155,21 +170,16 @@ if question_lists and description_blocks:
             's': ("사회 (업무, 공적 관계)", len(question_lists['s']))
         }
         title, num_questions = worlds_info[world_code]
-        
         st.markdown(f"<div class='intro-box'><h1>{title}</h1><h2>지금부터 {title}에 관한 {num_questions}개의 질문이 시작됩니다.</h2></div>", unsafe_allow_html=True)
-        
         if st.button("시작하기", key=f"start_{world_code}"):
             st.session_state.stage = f"quiz_{world_code}"
             st.rerun()
 
-    # 2. 질문 페이지 표시
     elif 'quiz' in current_stage:
         progress = len(st.session_state.responses) / total_questions
         st.progress(progress, text=f"전체 진행률: {len(st.session_state.responses)} / {total_questions}")
-
         world_code = current_stage.split('_')[1]
         current_question_list = question_lists[world_code]
-        
         next_question = next((q for q in current_question_list if q['id'] not in st.session_state.responses), None)
 
         if next_question:
@@ -184,13 +194,12 @@ if question_lists and description_blocks:
                     if st.button(str(val), key=f"q{q['id']}_val{val}"):
                         st.session_state.responses[q['id']] = val
                         st.rerun()
-        else: # 현재 세계 질문 완료, 다음 단계로 이동
+        else:
             if world_code == 'i': st.session_state.stage = 'intro_a'
             elif world_code == 'a': st.session_state.stage = 'intro_s'
             elif world_code == 's': st.session_state.stage = 'results'
             st.rerun()
             
-    # 3. 결과 페이지 표시
     elif current_stage == 'results':
         st.balloons(); st.success("검사가 완료되었습니다! 아래에서 결과를 확인하세요. 🎉"); st.markdown("---")
         
@@ -200,7 +209,6 @@ if question_lists and description_blocks:
             q_type = question_map[q_id]['type']
             if q_type in scores: scores[q_type] += value
 
-        # 종합 결과 계산
         total_score_R = (scores['RPi']+scores['RPa']+scores['RPs']) - (scores['RSi']+scores['RSa']+scores['RSs'])
         total_score_G = (scores['GPi']+scores['GPa']+scores['GPs']) - (scores['GSi']+scores['GSa']+scores['GSs'])
         total_score_B = (scores['BPi']+scores['BPa']+scores['BPs']) - (scores['BSi']+scores['BSa']+scores['BSs'])
@@ -214,7 +222,6 @@ if question_lists and description_blocks:
             'descriptions': { k: description_blocks['comprehensive'][k][comp_indices[k]] for k in "RGB" }
         }
 
-        # 세계별 결과 계산
         world_results = {}; worlds_map = {'i': '내면 세계', 'a': '주변 세계', 's': '사회'}; world_key_map = {'i': 'inner', 'a': 'relationships', 's': 'social'}
         for code, title in worlds_map.items():
             world_key = world_key_map[code]
@@ -227,7 +234,6 @@ if question_lists and description_blocks:
                 'description_B': description_blocks[world_key]['B'][index_B],
             }
 
-        # 결과 표시
         st.header(f"📈 당신의 종합 분석 결과")
         col1, col2 = st.columns([1, 1])
         with col1:
