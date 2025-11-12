@@ -24,7 +24,11 @@ div[data-testid="stDownloadButton"] > button { width: 250px; height: 55px; font-
 
 
 # --- 폰트 경로 설정 ---
-font_path = os.path.abspath('rgb-test/NanumGothic.ttf')
+# Streamlit 배포 환경을 고려하여 폰트 경로를 좀 더 유연하게 설정할 수 있습니다.
+# 예를 들어, 현재 스크립트 파일이 있는 디렉토리를 기준으로 할 수 있습니다.
+current_dir = os.path.dirname(__file__)
+font_path = os.path.join(current_dir, 'rgb-test', 'NanumGothic.ttf')
+
 if os.path.exists(font_path):
     fm.fontManager.addfont(font_path)
     font_name = fm.FontProperties(fname=font_path).get_name()
@@ -32,55 +36,186 @@ if os.path.exists(font_path):
     plt.rcParams['axes.unicode_minus'] = False
 else:
     st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 그래프/이미지의 한글이 깨질 수 있습니다.")
-
-# --- 종합 결과 이미지 생성 함수 ---
+    # Pillow 폰트 로드 실패 시에도 경고하도록 메시지 추가
+    
+# --- 종합 결과 이미지 생성 함수 (동적 높이 조절 적용) ---
 def generate_result_image(comprehensive_result, font_path):
-    img_width, img_height = 900, 1600
-    img = Image.new("RGB", (img_width, img_height), color="#FDFDFD")
-    draw = ImageDraw.Draw(img)
+    # --- 1. 초기 설정 및 폰트 로드 ---
+    img_width = 900 # 이미지 폭은 고정 (내용이 옆으로 넘치지 않도록 충분히 넓게)
+    
+    # 폰트 로드 시도
     try:
         title_font = ImageFont.truetype(font_path, 40)
         text_font_bold = ImageFont.truetype(font_path, 22)
         text_font = ImageFont.truetype(font_path, 18)
     except IOError:
+        st.warning(f"폰트 파일 '{font_path}'을(를) 찾을 수 없습니다. 이미지 생성에 기본 폰트를 사용합니다.")
         title_font, text_font_bold, text_font = ImageFont.load_default(), ImageFont.load_default(), ImageFont.load_default()
 
-    draw.text((img_width / 2, 60), "퍼스널컬러 심리검사 종합 결과", font=title_font, fill="black", anchor="mm")
-    hex_color, percentages, descriptions = comprehensive_result['hex'], comprehensive_result['percentages'], comprehensive_result['descriptions']
-    draw.rectangle([100, 120, 800, 270], fill=hex_color, outline="gray", width=2)
-    draw.text((img_width / 2, 300), f"나의 종합 성격 색상: {hex_color}", font=text_font_bold, fill="black", anchor="mm")
-    y_start_bars = 380
-    draw.text((100, y_start_bars), f"진취형(R): {percentages['R']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_start_bars + 35, 100 + (percentages['R'] * 7), y_start_bars + 55], fill='#E63946')
-    draw.text((100, y_start_bars + 80), f"중재형(G): {percentages['G']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_start_bars + 115, 100 + (percentages['G'] * 7), y_start_bars + 135], fill='#7FB069')
-    draw.text((100, y_start_bars + 160), f"신중형(B): {percentages['B']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_start_bars + 195, 100 + (percentages['B'] * 7), y_start_bars + 215], fill='#457B9D')
-    y_cursor = y_start_bars + 280
-    draw.text((50, y_cursor), "상세 성격 분석", font=title_font, fill="black")
-    y_cursor += 80
-    def draw_multiline_text_by_bullet(text, y_start, width_limit):
+    # --- 2. 이미지 높이 계산을 위한 첫 번째 렌더링 (가상) ---
+    # 실제 이미지를 그리지 않고, 텍스트가 차지할 공간을 계산하기 위한 임시 draw 객체
+    # 이 단계에서는 폰트의 textbbox, textlength를 활용하여 높이를 예측합니다.
+    temp_img = Image.new("RGB", (img_width, 100), color="#FDFDFD") # 임시 이미지
+    temp_draw = ImageDraw.Draw(temp_img) # 임시 draw 객체
+
+    # 텍스트 그리기 시작 Y 좌표 (높이 계산용)
+    calculated_y_for_height = 60
+
+    # 2-1. 제목 "퍼스널컬러 심리검사 종합 결과"
+    title_text = "퍼스널컬러 심리검사 종합 결과"
+    title_bbox = temp_draw.textbbox((0, 0), title_text, font=title_font)
+    title_height = title_bbox[3] - title_bbox[1]
+    calculated_y_for_height += title_height / 2 
+    calculated_y_for_height += title_height / 2 + 40 
+
+    # 2-2. 색상 바 및 "나의 종합 성격 색상" 텍스트
+    hex_color = comprehensive_result['hex']
+    
+    calculated_y_for_height += 10 # 여백 (사각형 위)
+    calculated_y_for_height += 150 + 20 # 사각형 자체의 높이 + 사각형 아래 여백
+    
+    text_color_info = f"나의 종합 성격 색상: {hex_color}"
+    color_info_bbox = temp_draw.textbbox((0, 0), text_color_info, font=text_font_bold)
+    color_info_height = color_info_bbox[3] - color_info_bbox[1]
+    calculated_y_for_height += color_info_height + 40 
+
+    # 2-3. 퍼센티지 바 섹션
+    percentages = comprehensive_result['percentages']
+    
+    # R 바
+    calculated_y_for_height += (text_font_bold.size + 6)
+    calculated_y_for_height += (20 + 25)
+    
+    # G 바
+    calculated_y_for_height += (text_font_bold.size + 6)
+    calculated_y_for_height += (20 + 25)
+    
+    # B 바
+    calculated_y_for_height += (text_font_bold.size + 6)
+    calculated_y_for_height += (20 + 25)
+    
+    calculated_y_for_height += 40 # 퍼센티지 바 섹션 아래 여백
+
+    # 2-4. "상세 성격 분석" 제목
+    detail_title_text = "상세 성격 분석"
+    detail_title_bbox = temp_draw.textbbox((0, 0), detail_title_text, font=title_font)
+    detail_title_height = detail_title_bbox[3] - detail_title_bbox[1]
+    calculated_y_for_height += detail_title_height + 80 
+
+    # 2-5. 상세 설명 (descriptions)의 높이 계산
+    descriptions = comprehensive_result['descriptions']
+    
+    # 멀티라인 텍스트 블록의 높이를 계산하는 헬퍼 함수
+    def calculate_multiline_text_block_height(text, font, width_limit, draw_obj):
+        total_block_height = 0
         bullet_points = [p.strip() for p in text.split('•') if p.strip()]
-        current_y = y_start
+        
         for point in bullet_points:
-            line_with_bullet = "• " + point; lines = []; words = line_with_bullet.split(' '); line_buffer = ""
+            line_with_bullet = "• " + point
+            lines = []
+            words = line_with_bullet.split(' ')
+            line_buffer = ""
+            
+            available_width = width_limit - 80 
+
             for word in words:
-                if draw.textlength(line_buffer + word, font=text_font) < width_limit: line_buffer += word + " "
-                else: lines.append(line_buffer); line_buffer = word + " "
+                if draw_obj.textlength(line_buffer + word, font=font) < available_width:
+                    line_buffer += word + " "
+                else:
+                    lines.append(line_buffer)
+                    line_buffer = word + " "
             lines.append(line_buffer)
-            for line in lines: draw.text((80, current_y), line, font=text_font, fill="#333333"); current_y += text_font.size + 6
-            current_y += 10
-        return current_y
-    y_cursor = draw_multiline_text_by_bullet(descriptions['R'], y_cursor, img_width - 120)
-    y_cursor = draw_multiline_text_by_bullet(descriptions['G'], y_cursor, img_width - 120)
-    y_cursor = draw_multiline_text_by_bullet(descriptions['B'], y_cursor, img_width - 120)
-    buffer = io.BytesIO(); img.save(buffer, format="PNG"); return buffer.getvalue()
+            
+            for _ in lines:
+                total_block_height += font.size + 6 
+            total_block_height += 10 
+        return total_block_height
+
+    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['R'], text_font, img_width, temp_draw)
+    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['G'], text_font, img_width, temp_draw)
+    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['B'], text_font, img_width, temp_draw)
+    
+    # 최종 이미지 높이 설정 (하단 여백 100 픽셀 추가)
+    final_img_height = int(calculated_y_for_height) + 100 
+
+    # --- 3. 실제 이미지 생성 및 그리기 ---
+    img = Image.new("RGB", (img_width, final_img_height), color="#FDFDFD")
+    draw = ImageDraw.Draw(img)
+
+    # 텍스트 그리기 시작 Y 좌표 (실제 그리기용)
+    y_cursor = 60 
+    
+    # 3-1. 제목 "퍼스널컬러 심리검사 종합 결과"
+    draw.text((img_width / 2, y_cursor), title_text, font=title_font, fill="black", anchor="mm")
+    y_cursor += title_height + 40 
+
+    # 3-2. 색상 바 및 "나의 종합 성격 색상" 텍스트
+    draw.rectangle([100, y_cursor, 800, y_cursor + 150], fill=hex_color, outline="gray", width=2)
+    y_cursor += 150 + 20 
+
+    draw.text((img_width / 2, y_cursor), text_color_info, font=text_font_bold, fill="black", anchor="mm")
+    y_cursor += color_info_height + 40 
+
+    # 3-3. 퍼센티지 바 섹션
+    draw.text((100, y_cursor), f"진취형(R): {percentages['R']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_cursor + 35, 100 + (percentages['R'] * 7), y_cursor + 55], fill='#E63946')
+    y_cursor += 80 
+
+    draw.text((100, y_cursor), f"중재형(G): {percentages['G']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_cursor + 35, 100 + (percentages['G'] * 7), y_cursor + 55], fill='#7FB069')
+    y_cursor += 80 
+
+    draw.text((100, y_cursor), f"신중형(B): {percentages['B']}%", font=text_font_bold, fill="black")
+    draw.rectangle([100, y_cursor + 35, 100 + (percentages['B'] * 7), y_cursor + 55], fill='#457B9D')
+    y_cursor += 80 + 40 # B 바 아래에 추가 여백
+
+    # 3-4. "상세 성격 분석" 제목
+    draw.text((50, y_cursor), "상세 성격 분석", font=title_font, fill="black")
+    y_cursor += detail_title_height + 80 
+
+    # 3-5. 상세 설명 (descriptions) 그리기
+    # 실제 텍스트를 그리는 헬퍼 함수
+    def draw_multiline_text_by_bullet_actual(text, y_start, width_limit, draw_obj, font_obj):
+        bullet_points = [p.strip() for p in text.split('•') if p.strip()]
+        current_y_local = y_start 
+        
+        for point in bullet_points:
+            line_with_bullet = "• " + point
+            lines = []
+            words = line_with_bullet.split(' ')
+            line_buffer = ""
+            
+            available_width = width_limit - 80 
+
+            for word in words:
+                if draw_obj.textlength(line_buffer + word, font=font_obj) < available_width: 
+                    line_buffer += word + " "
+                else:
+                    lines.append(line_buffer)
+                    line_buffer = word + " "
+            lines.append(line_buffer)
+            
+            for line in lines:
+                draw_obj.text((80, current_y_local), line, font=font_obj, fill="#333333")
+                current_y_local += font_obj.size + 6 
+            current_y_local += 10 
+        return current_y_local 
+
+    y_cursor = draw_multiline_text_by_bullet_actual(descriptions['R'], y_cursor, img_width, draw, text_font)
+    y_cursor = draw_multiline_text_by_bullet_actual(descriptions['G'], y_cursor, img_width, draw, text_font)
+    y_cursor = draw_multiline_text_by_bullet_actual(descriptions['B'], y_cursor, img_width, draw, text_font)
+    
+    # --- 4. 최종 이미지 저장 및 반환 ---
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    return buffer.getvalue()
+
 
 # --- 데이터 로드 함수 ---
 @st.cache_data
 def load_data(file_name):
     try:
-        file_path = os.path.join('rgb-test', file_name)
+        file_path = os.path.join(current_dir, 'rgb-test', file_name) # 폰트 경로와 동일하게 수정
         with open(file_path, 'r', encoding='utf-8') as f: return json.load(f)
     except FileNotFoundError:
         st.error(f"`rgb-test/{file_name}` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요."); return None
@@ -120,28 +255,18 @@ question_lists = get_balanced_questions_grouped(all_questions_data)
 
 st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
 
-# --- [수정] 인덱스 계산 함수 (문법 오류 해결) ---
+# --- 인덱스 계산 함수 (문법 오류 해결) ---
 def get_comprehensive_index(percentage):
-    if percentage <= 10:
-        return 0
-    elif percentage <= 20:
-        return 1
-    elif percentage <= 30:
-        return 2
-    elif percentage <= 40:
-        return 3
-    elif percentage <= 50:
-        return 4
-    elif percentage <= 60:
-        return 5
-    elif percentage <= 70:
-        return 6
-    elif percentage <= 80:
-        return 7
-    elif percentage <= 90:
-        return 8
-    else:
-        return 9
+    if percentage <= 10: return 0
+    elif percentage <= 20: return 1
+    elif percentage <= 30: return 2
+    elif percentage <= 40: return 3
+    elif percentage <= 50: return 4
+    elif percentage <= 60: return 5
+    elif percentage <= 70: return 6
+    elif percentage <= 80: return 7
+    elif percentage <= 90: return 8
+    else: return 9
 
 def get_world_description_index(score, world_type):
     if world_type == 'i':
@@ -171,12 +296,11 @@ if question_lists and description_blocks:
         }
         title, num_questions = worlds_info[world_code]
         st.markdown(f"<div class='intro-box'><h1>{title}</h1><h2>지금부터 {title}에 관한 {num_questions}개의 질문이 시작됩니다.</h2></div>", unsafe_allow_html=True)
-        cols = st.columns([1.55, 1, 1])  # 좌(1) : 중간(2) : 우(1)
-        with cols[1]:  # 가운데 컬럼
+        cols = st.columns([1.55, 1, 1])
+        with cols[1]:
             if st.button("시작하기", key=f"start_{world_code}"):
                 st.session_state.stage = f"quiz_{world_code}"
                 st.rerun()
-
 
     elif 'quiz' in current_stage:
         progress = len(st.session_state.responses) / total_questions
@@ -204,7 +328,9 @@ if question_lists and description_blocks:
             st.rerun()
             
     elif current_stage == 'results':
-        st.balloons(); st.success("검사가 완료되었습니다! 아래에서 결과를 확인하세요. 🎉"); st.markdown("---")
+        st.balloons()
+        st.success("검사가 완료되었습니다! 아래에서 결과를 확인하세요. 🎉")
+        st.markdown("---")
         
         scores = { f"{main}{sub}{world}":0 for main in "RGB" for sub in "PS" for world in "ias" }
         question_map = {q['id']: q for q in all_questions_flat}
@@ -228,8 +354,12 @@ if question_lists and description_blocks:
         world_results = {}; worlds_map = {'i': '내면 세계', 'a': '주변 세계', 's': '사회'}; world_key_map = {'i': 'inner', 'a': 'relationships', 's': 'social'}
         for code, title in worlds_map.items():
             world_key = world_key_map[code]
-            score_R = scores[f'RP{code}'] - scores[f'RS{code}']; score_G = scores[f'GP{code}'] - scores[f'GS{code}']; score_B = scores[f'BP{code}'] - scores[f'BS{code}']
-            index_R = get_world_description_index(score_R, code); index_G = get_world_description_index(score_G, code); index_B = get_world_description_index(score_B, code)
+            score_R = scores[f'RP{code}'] - scores[f'RS{code}']
+            score_G = scores[f'GP{code}'] - scores[f'GS{code}']
+            score_B = scores[f'BP{code}'] - scores[f'BS{code}']
+            index_R = get_world_description_index(score_R, code)
+            index_G = get_world_description_index(score_G, code)
+            index_B = get_world_description_index(score_B, code)
             world_results[code] = {
                 'title': title,
                 'description_R': description_blocks[world_key]['R'][index_R],
@@ -240,19 +370,32 @@ if question_lists and description_blocks:
         st.header(f"📈 당신의 종합 분석 결과")
         col1, col2 = st.columns([1, 1])
         with col1:
-            st.markdown("### 🎨 종합 성격 색상"); st.markdown(f"<div style='width: 100%; height: 200px; background-color: {comp_hex}; border: 2px solid #ccc; border-radius: 12px;'></div>", unsafe_allow_html=True)
+            st.markdown("### 🎨 종합 성격 색상")
+            st.markdown(f"<div style='width: 100%; height: 200px; background-color: {comp_hex}; border: 2px solid #ccc; border-radius: 12px;'></div>", unsafe_allow_html=True)
             st.markdown(f"<p style='text-align: center; font-size: 24px; font-weight: bold; margin-top: 10px;'>{comp_hex}</p>", unsafe_allow_html=True)
         with col2:
-            fig, ax = plt.subplots(figsize=(10, 5)); st.markdown("### ✨ 유형별 강도 시각화")
-            y_labels, values = ["진취형 (R)", "중재형 (G)", "신중형 (B)"], [comp_perc[k] for k in "RGB"]; colors = ['#E63946', '#7FB069', '#457B9D']
-            bars = ax.barh(y_labels, values, color=colors, height=0.6); ax.set_xlim(0, 115)
-            ax.spines[['top', 'right', 'left', 'bottom']].set_visible(False); ax.xaxis.set_ticks_position('none'); ax.yaxis.set_ticks_position('none')
-            ax.set_xticklabels([]); ax.set_yticklabels(y_labels, fontsize=14)
-            for bar in bars: width = bar.get_width(); ax.text(width + 2, bar.get_y() + bar.get_height() / 2, f'{width}%', ha='left', va='center', fontsize=12)
+            fig, ax = plt.subplots(figsize=(10, 5))
+            st.markdown("### ✨ 유형별 강도 시각화")
+            y_labels = ["진취형 (R)", "중재형 (G)", "신중형 (B)"]
+            values = [comp_perc[k] for k in "RGB"]
+            colors = ['#E63946', '#7FB069', '#457B9D']
+            bars = ax.barh(y_labels, values, color=colors, height=0.6)
+            ax.set_xlim(0, 115)
+            ax.spines[['top', 'right', 'left', 'bottom']].set_visible(False)
+            ax.xaxis.set_ticks_position('none')
+            ax.yaxis.set_ticks_position('none')
+            ax.set_xticklabels([])
+            ax.set_yticklabels(y_labels, fontsize=14)
+            for bar in bars:
+                width = bar.get_width()
+                ax.text(width + 2, bar.get_y() + bar.get_height() / 2, f'{width}%', ha='left', va='center', fontsize=12)
             st.pyplot(fig)
-        
-        st.markdown("#### 📜 상세 성격 분석"); st.info(f"**🔴 진취형(R):** {comprehensive_result['descriptions']['R']}")
-        st.success(f"**🟢 중재형(G):** {comprehensive_result['descriptions']['G']}"); st.warning(f"**🔵 신중형(B):** {comprehensive_result['descriptions']['B']}"); st.markdown("---")
+            
+        st.markdown("#### 📜 상세 성격 분석")
+        st.info(f"**🔴 진취형(R):** {comprehensive_result['descriptions']['R']}")
+        st.success(f"**🟢 중재형(G):** {comprehensive_result['descriptions']['G']}")
+        st.warning(f"**🔵 신중형(B):** {comprehensive_result['descriptions']['B']}")
+        st.markdown("---")
 
         st.header("📑 세계별 요약 분석")
         for code, data in world_results.items():
@@ -268,12 +411,3 @@ if question_lists and description_blocks:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
-
-
-
-
-
-
-
-
-
