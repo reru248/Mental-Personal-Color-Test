@@ -24,9 +24,9 @@ div[data-testid="stDownloadButton"] > button { width: 250px; height: 55px; font-
 
 
 # --- 폰트 경로 설정 ---
-# Streamlit 배포 환경을 고려하여 폰트 경로를 좀 더 유연하게 설정할 수 있습니다.
-# 예를 들어, 현재 스크립트 파일이 있는 디렉토리를 기준으로 할 수 있습니다.
+# 현재 스크립트 파일이 있는 디렉토리의 절대 경로를 얻습니다.
 current_dir = os.path.dirname(__file__)
+# 'rgb-test' 폴더는 current_dir 바로 아래에 있다고 가정합니다.
 font_path = os.path.join(current_dir, 'rgb-test', 'NanumGothic.ttf')
 
 if os.path.exists(font_path):
@@ -36,7 +36,6 @@ if os.path.exists(font_path):
     plt.rcParams['axes.unicode_minus'] = False
 else:
     st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 그래프/이미지의 한글이 깨질 수 있습니다.")
-    # Pillow 폰트 로드 실패 시에도 경고하도록 메시지 추가
     
 # --- 종합 결과 이미지 생성 함수 (동적 높이 조절 적용) ---
 def generate_result_image(comprehensive_result, font_path):
@@ -215,10 +214,11 @@ def generate_result_image(comprehensive_result, font_path):
 @st.cache_data
 def load_data(file_name):
     try:
-        file_path = os.path.join(current_dir, 'rgb-test', file_name) # 폰트 경로와 동일하게 수정
+        # 파일 경로도 폰트 경로와 동일하게 current_dir을 기준으로 'rgb-test' 폴더 안에 있는 것으로 설정
+        file_path = os.path.join(current_dir, 'rgb-test', file_name)
         with open(file_path, 'r', encoding='utf-8') as f: return json.load(f)
     except FileNotFoundError:
-        st.error(f"`rgb-test/{file_name}` 파일을 찾을 수 없습니다. 폴더 경로를 확인해주세요."); return None
+        st.error(f"데이터 파일 '{file_path}'을(를) 찾을 수 없습니다. 폴더 경로를 확인해주세요."); return None
 
 # --- 질문리스트 그룹화 함수 ---
 @st.cache_data
@@ -255,7 +255,7 @@ question_lists = get_balanced_questions_grouped(all_questions_data)
 
 st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
 
-# --- 인덱스 계산 함수 (문법 오류 해결) ---
+# --- 인덱스 계산 함수 ---
 def get_comprehensive_index(percentage):
     if percentage <= 10: return 0
     elif percentage <= 20: return 1
@@ -282,7 +282,7 @@ st.markdown("---")
 if 'stage' not in st.session_state: st.session_state.stage = 'intro_i'
 if 'responses' not in st.session_state: st.session_state.responses = {}
 
-if question_lists and description_blocks:
+if question_lists and description_blocks: # 데이터 로드가 성공했을 때만 앱 로직 실행
     all_questions_flat = question_lists['i'] + question_lists['a'] + question_lists['s']
     total_questions = len(all_questions_flat)
     current_stage = st.session_state.stage
@@ -352,7 +352,7 @@ if question_lists and description_blocks:
         }
 
         world_results = {}; worlds_map = {'i': '내면 세계', 'a': '주변 세계', 's': '사회'}; world_key_map = {'i': 'inner', 'a': 'relationships', 's': 'social'}
-        for code, title in worlds_map.items():
+        for code, data in worlds_map.items():
             world_key = world_key_map[code]
             score_R = scores[f'RP{code}'] - scores[f'RS{code}']
             score_G = scores[f'GP{code}'] - scores[f'GS{code}']
