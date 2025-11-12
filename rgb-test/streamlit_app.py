@@ -24,8 +24,9 @@ div[data-testid="stDownloadButton"] > button { width: 250px; height: 55px; font-
 
 
 # --- 폰트 경로 설정 ---
-# 현재 스크립트 파일이 있는 디렉토리의 절대 경로를 얻습니다.
-current_dir = os.path.dirname(__file__)
+# 스크립트 파일이 위치한 디렉토리의 절대 경로를 얻습니다.
+# 이 방법은 Streamlit 앱이 어느 디렉토리에서 실행되든 항상 정확한 스크립트 디렉토리를 참조합니다.
+current_dir = os.path.dirname(os.path.abspath(__file__))
 # 'rgb-test' 폴더는 current_dir 바로 아래에 있다고 가정합니다.
 font_path = os.path.join(current_dir, 'rgb-test', 'NanumGothic.ttf')
 
@@ -52,8 +53,6 @@ def generate_result_image(comprehensive_result, font_path):
         title_font, text_font_bold, text_font = ImageFont.load_default(), ImageFont.load_default(), ImageFont.load_default()
 
     # --- 2. 이미지 높이 계산을 위한 첫 번째 렌더링 (가상) ---
-    # 실제 이미지를 그리지 않고, 텍스트가 차지할 공간을 계산하기 위한 임시 draw 객체
-    # 이 단계에서는 폰트의 textbbox, textlength를 활용하여 높이를 예측합니다.
     temp_img = Image.new("RGB", (img_width, 100), color="#FDFDFD") # 임시 이미지
     temp_draw = ImageDraw.Draw(temp_img) # 임시 draw 객체
 
@@ -104,7 +103,6 @@ def generate_result_image(comprehensive_result, font_path):
     # 2-5. 상세 설명 (descriptions)의 높이 계산
     descriptions = comprehensive_result['descriptions']
     
-    # 멀티라인 텍스트 블록의 높이를 계산하는 헬퍼 함수
     def calculate_multiline_text_block_height(text, font, width_limit, draw_obj):
         total_block_height = 0
         bullet_points = [p.strip() for p in text.split('•') if p.strip()]
@@ -134,14 +132,12 @@ def generate_result_image(comprehensive_result, font_path):
     calculated_y_for_height += calculate_multiline_text_block_height(descriptions['G'], text_font, img_width, temp_draw)
     calculated_y_for_height += calculate_multiline_text_block_height(descriptions['B'], text_font, img_width, temp_draw)
     
-    # 최종 이미지 높이 설정 (하단 여백 100 픽셀 추가)
     final_img_height = int(calculated_y_for_height) + 100 
 
     # --- 3. 실제 이미지 생성 및 그리기 ---
     img = Image.new("RGB", (img_width, final_img_height), color="#FDFDFD")
     draw = ImageDraw.Draw(img)
 
-    # 텍스트 그리기 시작 Y 좌표 (실제 그리기용)
     y_cursor = 60 
     
     # 3-1. 제목 "퍼스널컬러 심리검사 종합 결과"
@@ -166,14 +162,13 @@ def generate_result_image(comprehensive_result, font_path):
 
     draw.text((100, y_cursor), f"신중형(B): {percentages['B']}%", font=text_font_bold, fill="black")
     draw.rectangle([100, y_cursor + 35, 100 + (percentages['B'] * 7), y_cursor + 55], fill='#457B9D')
-    y_cursor += 80 + 40 # B 바 아래에 추가 여백
+    y_cursor += 80 + 40 
 
     # 3-4. "상세 성격 분석" 제목
     draw.text((50, y_cursor), "상세 성격 분석", font=title_font, fill="black")
     y_cursor += detail_title_height + 80 
 
     # 3-5. 상세 설명 (descriptions) 그리기
-    # 실제 텍스트를 그리는 헬퍼 함수
     def draw_multiline_text_by_bullet_actual(text, y_start, width_limit, draw_obj, font_obj):
         bullet_points = [p.strip() for p in text.split('•') if p.strip()]
         current_y_local = y_start 
