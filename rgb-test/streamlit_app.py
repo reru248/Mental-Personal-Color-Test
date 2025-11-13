@@ -33,7 +33,8 @@ if os.path.exists(font_path):
     plt.rc('font', family=font_name)
     plt.rcParams['axes.unicode_minus'] = False
 else:
-    st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 그래프/이미지의 한글이 깨질 수 있습니다.")
+    # 폰트가 없는 경우를 대비하여 경고 메시지 대신 기본 폰트 설정 유지
+    pass 
     
 # --- 텍스트 길이 측정 도우미 함수 (안정성 강화) ---
 def safe_text_width(draw_obj, text, font):
@@ -44,20 +45,21 @@ def safe_text_width(draw_obj, text, font):
         bbox = draw_obj.textbbox((0, 0), text, font=font)
         return bbox[2] - bbox[0]
     except Exception:
+        # 폰트 로드 실패 등 비상 상황 시 대략적인 너비 추정
         return len(text) * font.size 
 
 
 # --- 종합 결과 이미지 생성 함수 (스타일 및 겹침 문제 해결 반영) ---
-def generate_result_image(comprehensive_result, world_results, font_path): # world_results 인자 추가
+def generate_result_image(comprehensive_result, world_results, font_path):
     # --- 1. 초기 설정 및 폰트 로드 ---
     img_width = 900
-    padding_x = 30 # <-- 좌우 여백 축소 (50 -> 30)
+    padding_x = 30 # 좌우 여백 축소
     
     title_font, section_title_font, sub_section_title_font, text_font_bold, text_font, hex_font = [ImageFont.load_default()] * 6
     try:
         title_font = ImageFont.truetype(font_path, 36)
         section_title_font = ImageFont.truetype(font_path, 28)
-        sub_section_title_font = ImageFont.truetype(font_path, 24) # 서브 섹션 제목용 폰트 추가
+        sub_section_title_font = ImageFont.truetype(font_path, 24)
         text_font_bold = ImageFont.truetype(font_path, 20)
         text_font = ImageFont.truetype(font_path, 16)
         hex_font = ImageFont.truetype(font_path, 24)
@@ -81,7 +83,7 @@ def generate_result_image(comprehensive_result, world_results, font_path): # wor
     descriptions = comprehensive_result['descriptions']
     
     # --- 줄바꿈을 계산하고 높이를 반환하는 도우미 함수 ---
-    def calculate_multiline_text_block_height(title_text, text, font, width_limit, draw_obj, title_font_obj):
+    def calculate_multiline_text_block_height(text, font, width_limit, draw_obj, title_font_obj):
         total_block_height = 0
         total_block_height += title_font_obj.size + 15 # 제목 높이
         
@@ -99,25 +101,27 @@ def generate_result_image(comprehensive_result, world_results, font_path): # wor
         lines.append(line_buffer)
         
         for _ in lines:
-            total_block_height += font.size + 15 # <-- 줄 간격 확대 (10 -> 15)
+            total_block_height += font.size + 15 # 줄 간격 확대
             
-        total_block_height += 80 # <-- 문단 간격 대폭 확대 (70 -> 80)
+        total_block_height += 80 # 문단 간격 대폭 확대
         return total_block_height
 
     # 종합 상세 분석 높이 계산
-    calculated_y_for_height += calculate_multiline_text_block_height("진취형(R) 성향 분석", descriptions['R'], text_font, img_width, temp_draw, text_font_bold)
-    calculated_y_for_height += calculate_multiline_text_block_height("중재형(G) 성향 분석", descriptions['G'], text_font, img_width, temp_draw, text_font_bold)
-    calculated_y_for_height += calculate_multiline_text_block_height("신중형(B) 성향 분석", descriptions['B'], text_font, img_width, temp_draw, text_font_bold)
+    # text_font_bold는 종합 분석의 소제목 폰트
+    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['R'], text_font, img_width, temp_draw, text_font_bold)
+    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['G'], text_font, img_width, temp_draw, text_font_bold)
+    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['B'], text_font, img_width, temp_draw, text_font_bold)
     
     # 세계별 요약 분석 섹션 제목 높이 추가
     calculated_y_for_height += section_title_font.size + 40 
 
     # 세계별 요약 분석 내용 높이 계산
+    # text_font는 세계별 분석의 소제목 폰트
     for world_code in ['i', 'a', 's']:
         calculated_y_for_height += sub_section_title_font.size + 20 # 세계별 소제목 높이
-        calculated_y_for_height += calculate_multiline_text_block_height("추진력/결정/리더십", world_results[world_code]['description_R'], text_font, img_width, temp_draw, text_font)
-        calculated_y_for_height += calculate_multiline_text_block_height("인간관계/협력/의사소통", world_results[world_code]['description_G'], text_font, img_width, temp_draw, text_font)
-        calculated_y_for_height += calculate_multiline_text_block_height("사고방식/계획/판단", world_results[world_code]['description_B'], text_font, img_width, temp_draw, text_font)
+        calculated_y_for_height += calculate_multiline_text_block_height(world_results[world_code]['description_R'], text_font, img_width, temp_draw, text_font_bold)
+        calculated_y_for_height += calculate_multiline_text_block_height(world_results[world_code]['description_G'], text_font, img_width, temp_draw, text_font_bold)
+        calculated_y_for_height += calculate_multiline_text_block_height(world_results[world_code]['description_B'], text_font, img_width, temp_draw, text_font_bold)
 
     final_img_height = int(calculated_y_for_height) + 50
 
@@ -132,8 +136,8 @@ def generate_result_image(comprehensive_result, world_results, font_path): # wor
     y_cursor += title_font.size + 30 
     
     # 3-2. 섹션 제목
-    draw.text((padding_x, y_cursor), "종합 성격 색상", font=section_title_font, fill="#333333") # 이모지 제거
-    draw.text((img_width / 2 + 20, y_cursor), "유형별 강도 시각화", font=section_title_font, fill="#333333") # 이모지 제거
+    draw.text((padding_x, y_cursor), "종합 성격 색상", font=section_title_font, fill="#333333")
+    draw.text((img_width / 2 + 20, y_cursor), "유형별 강도 시각화", font=section_title_font, fill="#333333")
     y_cursor += section_title_font.size + 20
 
     # --- 3-3. 왼쪽: 종합 성격 색상 ---
@@ -174,7 +178,7 @@ def generate_result_image(comprehensive_result, world_results, font_path): # wor
     y_cursor = max(y_cursor_after_color_box, bar_y_start + 20) 
 
     # 3-5. "상세 성격 분석" 제목
-    draw.text((padding_x, y_cursor), "상세 성격 분석", font=section_title_font, fill="#333333") # 이모지 제거
+    draw.text((padding_x, y_cursor), "상세 성격 분석", font=section_title_font, fill="#333333")
     y_cursor += section_title_font.size + 40 
 
     # 3-6. 상세 설명 (descriptions) 그리기
@@ -183,12 +187,11 @@ def generate_result_image(comprehensive_result, world_results, font_path): # wor
         
         # 이모지 대신 색상별 텍스트 색상 적용
         color_fill_map = {'R': '#E63946', 'G': '#7FB069', 'B': '#457B9D', 
-                          'default_r': '#E63946', 'default_g': '#7FB069', 'default_b': '#457B9D'} # 세계별 결과용 기본 색상 추가
+                          'default_r': '#E63946', 'default_g': '#7FB069', 'default_b': '#457B9D'} 
 
-        # 세계별 결과의 소제목은 기존 3가지 색상을 따르도록
-        title_color = color_fill_map.get(color_code, '#333333') # 기본값은 진한 회색
+        title_color = color_fill_map.get(color_code, '#333333')
         
-        draw_obj.text((padding_x, current_y_local), title_text, font=title_font_obj, fill=title_color) # 이모지 제거 및 색상 적용
+        draw_obj.text((padding_x, current_y_local), title_text, font=title_font_obj, fill=title_color) 
         current_y_local += title_font_obj.size + 15
 
         lines = []
@@ -211,13 +214,13 @@ def generate_result_image(comprehensive_result, world_results, font_path): # wor
         current_y_local += 80 # 문단 간격 대폭 확대
         return current_y_local
 
-    # 종합 상세 분석
+    # 종합 상세 분석 (title_font_obj = text_font_bold)
     y_cursor = draw_description_block("진취형(R) 성향 분석", descriptions['R'], 'R', y_cursor, img_width, draw, text_font_bold, text_font)
     y_cursor = draw_description_block("중재형(G) 성향 분석", descriptions['G'], 'G', y_cursor, img_width, draw, text_font_bold, text_font)
     y_cursor = draw_description_block("신중형(B) 성향 분석", descriptions['B'], 'B', y_cursor, img_width, draw, text_font_bold, text_font)
     
     # 3-7. "세계별 요약 분석" 제목
-    draw.text((padding_x, y_cursor), "세계별 요약 분석", font=section_title_font, fill="#333333") # 이모지 제거
+    draw.text((padding_x, y_cursor), "세계별 요약 분석", font=section_title_font, fill="#333333") 
     y_cursor += section_title_font.size + 40 
 
     # 3-8. 세계별 요약 분석 내용
@@ -226,10 +229,10 @@ def generate_result_image(comprehensive_result, world_results, font_path): # wor
         draw.text((padding_x, y_cursor), f"'{worlds_map[code]}'에서는...", font=sub_section_title_font, fill="#333333")
         y_cursor += sub_section_title_font.size + 20
 
-        # 세계별 R, G, B 설명 (각 설명마다 다른 색상 코드를 부여하여 구분)
-        y_cursor = draw_description_block("추진력/결정/리더십", data['description_R'], 'default_r', y_cursor, img_width, draw, text_font_bold, text_font)
-        y_cursor = draw_description_block("인간관계/협력/의사소통", data['description_G'], 'default_g', y_cursor, img_width, draw, text_font_bold, text_font)
-        y_cursor = draw_description_block("사고방식/계획/판단", data['description_B'], 'default_b', y_cursor, img_width, draw, text_font_bold, text_font)
+        # 세계별 R, G, B 설명 (title_font_obj = text_font_bold)
+        y_cursor = draw_description_block("🔴 추진력/결정/리더십", data['description_R'], 'default_r', y_cursor, img_width, draw, text_font_bold, text_font)
+        y_cursor = draw_description_block("🟢 인간관계/협력/의사소통", data['description_G'], 'default_g', y_cursor, img_width, draw, text_font_bold, text_font)
+        y_cursor = draw_description_block("🔵 사고방식/계획/판단", data['description_B'], 'default_b', y_cursor, img_width, draw, text_font_bold, text_font)
 
     # --- 4. 최종 이미지 저장 및 반환 ---
     buffer = io.BytesIO()
@@ -446,12 +449,14 @@ if question_lists and description_blocks:
         st.header("📑 세계별 요약 분석")
         for code, data in world_results_data.items():
             with st.expander(f"**당신의 {data['title']}에서는...**"):
+                # 세계별 결과 섹션에는 이모지를 유지하여 텍스트로 구분
                 st.markdown(f"**🔴 (추진력/결정/리더십):** {data['description_R']}")
                 st.markdown(f"**🟢 (인간관계/협력/의사소통):** {data['description_G']}")
                 st.markdown(f"**🔵 (사고방식/계획/판단):** {data['description_B']}")
         st.markdown("---")
         
-        image_buffer = generate_result_image(comprehensive_result, font_path)
+        # 이미지 생성 시 world_results_data를 인자로 전달
+        image_buffer = generate_result_image(comprehensive_result, world_results_data, font_path)
         st.download_button(label="📥 종합 결과 이미지 저장하기", data=image_buffer, file_name="RGB_personality_result.png", mime="image/png")
         
         if st.button("다시 검사하기"):
@@ -459,6 +464,3 @@ if question_lists and description_blocks:
             st.rerun()
 else:
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
-
-
-
