@@ -102,7 +102,7 @@ def generate_result_image(comprehensive_result, font_path):
         
         for _ in lines:
             total_block_height += font.size + 6 
-        total_block_height += 50 # <-- 문단 간격 확장 (30 -> 50)
+        total_block_height += 80 # <-- 문단 간격 확장 (30 -> 50)
         return total_block_height
 
     calculated_y_for_height += calculate_multiline_text_block_height(descriptions['R'], text_font, img_width, temp_draw)
@@ -434,3 +434,4 @@ if question_lists and description_blocks:
             st.rerun()
 else:
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
+
