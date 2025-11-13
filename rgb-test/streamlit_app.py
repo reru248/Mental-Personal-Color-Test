@@ -1,4 +1,4 @@
-iimport streamlit as st
+import streamlit as st
 import json
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
@@ -459,4 +459,5 @@ if question_lists and description_blocks:
             st.rerun()
 else:
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
+
 
