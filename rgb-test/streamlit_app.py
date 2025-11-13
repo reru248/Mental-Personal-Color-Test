@@ -76,7 +76,7 @@ def generate_result_image(comprehensive_result, font_path):
     # 종합 색상 및 퍼센트 바 섹션의 최대 높이 계산 (높은 쪽을 선택)
     color_box_height = 150 + hex_font.size + 30
     bar_section_height = (text_font_bold.size + 30) * 3 + 20 
-    calculated_y_for_height += max(color_box_height, bar_section_height) + 40 # 섹션 높이 + 아래 여백
+    calculated_y_for_height += max(color_box_height, bar_section_height) + 40 
 
     calculated_y_for_height += section_title_font.size + 40 
 
@@ -102,7 +102,7 @@ def generate_result_image(comprehensive_result, font_path):
         
         for _ in lines:
             total_block_height += font.size + 6 
-        total_block_height += 30 # 블록 간 여백
+        total_block_height += 50 # <-- 문단 간격 확장 (30 -> 50)
         return total_block_height
 
     calculated_y_for_height += calculate_multiline_text_block_height(descriptions['R'], text_font, img_width, temp_draw)
@@ -121,11 +121,9 @@ def generate_result_image(comprehensive_result, font_path):
     draw.text((padding_x, y_cursor), "당신의 종합 분석 결과", font=title_font, fill="#333333")
     y_cursor += title_font.size + 30 
     
-    # 3-2. 섹션 제목 (종합 성격 색상, 유형별 강도 시각화)
-    draw.text((padding_x, y_cursor), "🔴 종합 성격 색상", font=section_title_font, fill="#333333")
-    
-    # 'X' 상자 제거: 시각화 차트는 Streamlit 화면에서만 표시되므로, 이미지에는 제목만 남기거나 텍스트를 제거합니다.
-    draw.text((img_width / 2 + 20, y_cursor), "📊 유형별 강도 시각화", font=section_title_font, fill="#333333")
+    # 3-2. 섹션 제목 (이모지 제거하여 안정화)
+    draw.text((padding_x, y_cursor), "종합 성격 색상", font=section_title_font, fill="#333333")
+    draw.text((img_width / 2 + 20, y_cursor), "유형별 강도 시각화", font=section_title_font, fill="#333333")
     y_cursor += section_title_font.size + 20
 
     # --- 3-3. 왼쪽: 종합 성격 색상 ---
@@ -164,18 +162,19 @@ def generate_result_image(comprehensive_result, font_path):
         
         bar_y_start += (bar_height + 40)
         
-    # 다음 섹션 시작 Y 커서를 계산
     y_cursor = max(y_cursor_after_color_box, bar_y_start + 20) 
 
-    # 3-5. "상세 성격 분석" 제목
-    draw.text((padding_x, y_cursor), "📜 상세 성격 분석", font=section_title_font, fill="#333333")
+    # 3-5. "상세 성격 분석" 제목 (이모지 제거하여 안정화)
+    draw.text((padding_x, y_cursor), "상세 성격 분석", font=section_title_font, fill="#333333")
     y_cursor += section_title_font.size + 40 
 
     # 3-6. 상세 설명 (descriptions) 그리기
     def draw_description_block(title, description, color_code, y_start, width_limit, draw_obj, title_font_obj, text_font_obj):
         current_y_local = y_start 
         
-        draw_obj.text((padding_x, current_y_local), f"{color_code} {title}", font=title_font_obj, fill="#333333")
+        # 색상 코드(🔴/🟢/🔵)를 텍스트로 대체하여 안정화
+        color_map = {'R': '🔴', 'G': '🟢', 'B': '🔵'}
+        draw_obj.text((padding_x, current_y_local), f"{color_map[color_code]} {title}", font=title_font_obj, fill="#333333")
         current_y_local += title_font_obj.size + 15
 
         lines = []
@@ -184,7 +183,6 @@ def generate_result_image(comprehensive_result, font_path):
         available_width = width_limit - (padding_x * 2) 
 
         for word in words:
-            # 안전한 길이 측정 사용
             if safe_text_width(draw_obj, line_buffer + word, font=text_font_obj) < available_width: 
                 line_buffer += word + " "
             else:
@@ -192,22 +190,21 @@ def generate_result_image(comprehensive_result, font_path):
                 line_buffer = word + " "
         lines.append(line_buffer)
         
-        # 겹침 방지 핵심 수정: 줄바꿈된 모든 라인을 그리고 다음 시작 Y좌표를 계산
         for line in lines:
             draw_obj.text((padding_x, current_y_local), line, font=text_font_obj, fill="#555555")
             current_y_local += text_font_obj.size + 6 
             
-        current_y_local += 30
-        return current_y_local # 다음 블록의 시작 Y 좌표를 반환
+        current_y_local += 50 # <-- 문단 간격 확장 (30 -> 50)
+        return current_y_local
 
     # R 블록
-    y_cursor = draw_description_block("진취형(R) 성향 분석", descriptions['R'], '🔴', y_cursor, img_width, draw, text_font_bold, text_font)
+    y_cursor = draw_description_block("진취형(R) 성향 분석", descriptions['R'], 'R', y_cursor, img_width, draw, text_font_bold, text_font)
     
     # G 블록
-    y_cursor = draw_description_block("중재형(G) 성향 분석", descriptions['G'], '🟢', y_cursor, img_width, draw, text_font_bold, text_font)
+    y_cursor = draw_description_block("중재형(G) 성향 분석", descriptions['G'], 'G', y_cursor, img_width, draw, text_font_bold, text_font)
     
     # B 블록
-    y_cursor = draw_description_block("신중형(B) 성향 분석", descriptions['B'], '🔵', y_cursor, img_width, draw, text_font_bold, text_font)
+    y_cursor = draw_description_block("신중형(B) 성향 분석", descriptions['B'], 'B', y_cursor, img_width, draw, text_font_bold, text_font)
     
     # --- 4. 최종 이미지 저장 및 반환 ---
     buffer = io.BytesIO()
