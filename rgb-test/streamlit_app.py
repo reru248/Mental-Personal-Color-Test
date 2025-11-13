@@ -444,7 +444,7 @@ if question_lists and description_blocks:
         st.markdown("---")
 
         st.header("📑 세계별 요약 분석")
-        for code, data in world_results.items():
+        for code, data in world_results_data.items():
             with st.expander(f"**당신의 {data['title']}에서는...**"):
                 st.markdown(f"**🔴 (추진력/결정/리더십):** {data['description_R']}")
                 st.markdown(f"**🟢 (인간관계/협력/의사소통):** {data['description_G']}")
@@ -459,5 +459,6 @@ if question_lists and description_blocks:
             st.rerun()
 else:
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
+
 
 
