@@ -44,7 +44,9 @@ def safe_text_width(draw_obj, text, font):
         bbox = draw_obj.textbbox((0, 0), text, font=font)
         return bbox[2] - bbox[0]
     except Exception:
-        return len(text) * font.size // 2 
+        # 폰트 로드 실패 등 비상 상황 시 대략적인 너비 추정
+        # 이모지를 포함한 텍스트의 길이를 추정하기 위해 글자 크기 + 넉넉한 공간 부여
+        return len(text) * font.size 
 
 
 # --- 종합 결과 이미지 생성 함수 (스타일 및 겹침 문제 해결 반영) ---
@@ -80,9 +82,9 @@ def generate_result_image(comprehensive_result, font_path):
     descriptions = comprehensive_result['descriptions']
     
     # --- 줄바꿈을 계산하고 높이를 반환하는 도우미 함수 ---
-    def calculate_multiline_text_block_height(text, font, width_limit, draw_obj):
+    def calculate_multiline_text_block_height(title_text, text, font, width_limit, draw_obj):
         total_block_height = 0
-        total_block_height += text_font_bold.size + 15 # 색상 제목 높이
+        total_block_height += text_font_bold.size + 15 # 색상 제목 높이 (title_text 포함)
         
         lines = []
         words = text.split(' ')
@@ -90,6 +92,7 @@ def generate_result_image(comprehensive_result, font_path):
         available_width = width_limit - (padding_x * 2)
 
         for word in words:
+            # 제목을 포함하지 않고 순수 설명 텍스트만으로 줄바꿈 계산
             if safe_text_width(draw_obj, line_buffer + word, font=font) < available_width:
                 line_buffer += word + " "
             else:
@@ -97,16 +100,21 @@ def generate_result_image(comprehensive_result, font_path):
                 line_buffer = word + " "
         lines.append(line_buffer)
         
-        # 수정: 줄 간격을 text_font.size + 10으로 늘려 겹침 방지 및 가독성 확보
         for _ in lines:
-            total_block_height += font.size + 10 
+            total_block_height += font.size + 10 # 줄 간격
             
-        total_block_height += 70 # <-- 문단 간격 대폭 확대 (50 -> 70)
+        total_block_height += 70 # 문단 간격
         return total_block_height
 
-    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['R'], text_font, img_width, temp_draw)
-    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['G'], text_font, img_width, temp_draw)
-    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['B'], text_font, img_width, temp_draw)
+    # 각 설명 블록의 높이 계산 시 제목 텍스트도 전달하여 정확성 높임
+    color_map_for_height_calc = {'R': '🔴', 'G': '🟢', 'B': '🔵'}
+    title_r = f"{color_map_for_height_calc['R']} 진취형(R) 성향 분석"
+    title_g = f"{color_map_for_height_calc['G']} 중재형(G) 성향 분석"
+    title_b = f"{color_map_for_height_calc['B']} 신중형(B) 성향 분석"
+
+    calculated_y_for_height += calculate_multiline_text_block_height(title_r, descriptions['R'], text_font, img_width, temp_draw)
+    calculated_y_for_height += calculate_multiline_text_block_height(title_g, descriptions['G'], text_font, img_width, temp_draw)
+    calculated_y_for_height += calculate_multiline_text_block_height(title_b, descriptions['B'], text_font, img_width, temp_draw)
     
     final_img_height = int(calculated_y_for_height) + 50
 
@@ -168,15 +176,17 @@ def generate_result_image(comprehensive_result, font_path):
     y_cursor += section_title_font.size + 40 
 
     # 3-6. 상세 설명 (descriptions) 그리기
-    def draw_description_block(title, description, color_code, y_start, width_limit, draw_obj, title_font_obj, text_font_obj):
+    def draw_description_block(title_text, description, color_code, y_start, width_limit, draw_obj, title_font_obj, text_font_obj):
         current_y_local = y_start 
         
         # 색상 코드(🔴/🟢/🔵)를 텍스트 앞에 붙여서 가독성 확보
         color_map = {'R': '🔴', 'G': '🟢', 'B': '🔵'}
-        draw_obj.text((padding_x, current_y_local), f"{color_map[color_code]} {title}", font=title_font_obj, fill="#333333")
+        full_title_with_emoji = f"{color_map[color_code]} {title_text}"
+        draw_obj.text((padding_x, current_y_local), full_title_with_emoji, font=title_font_obj, fill="#333333")
         current_y_local += title_font_obj.size + 15
 
         lines = []
+        # 제목을 제외한 순수 설명 텍스트로 줄바꿈 처리
         words = description.split(' ')
         line_buffer = ""
         available_width = width_limit - (padding_x * 2) 
@@ -191,11 +201,9 @@ def generate_result_image(comprehensive_result, font_path):
         
         for line in lines:
             draw_obj.text((padding_x, current_y_local), line, font=text_font_obj, fill="#555555")
-            # 수정: 줄 간격 확대
-            current_y_local += text_font_obj.size + 10 
+            current_y_local += text_font_obj.size + 10 # 줄 간격 확대
             
-        # 수정: 문단 간격 대폭 확대
-        current_y_local += 70 
+        current_y_local += 70 # 문단 간격 대폭 확대
         return current_y_local
 
     # R 블록
