@@ -25,9 +25,9 @@ div[data-testid="stDownloadButton"] > button { width: 250px; height: 55px; font-
 
 # --- 폰트 경로 설정 ---
 # 스크립트 파일이 위치한 디렉토리의 절대 경로를 얻습니다.
-# 이 방법은 Streamlit 앱이 어느 디렉토리에서 실행되든 항상 정확한 스크립트 디렉토리를 참조합니다.
+# 이 방법은 Streamlit 앱이 어느 디렉토리에서 실행되든 항상 정확한 스크립트 디렉토리 (Mental-Personal-Color-Test)를 참조합니다.
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# 'rgb-test' 폴더는 current_dir 바로 아래에 있다고 가정합니다.
+# 'rgb-test' 폴더는 current_dir (Mental-Personal-Color-Test) 바로 아래에 있다고 가정합니다.
 font_path = os.path.join(current_dir, 'rgb-test', 'NanumGothic.ttf')
 
 if os.path.exists(font_path):
@@ -244,9 +244,18 @@ def get_balanced_questions_grouped(all_questions_data):
     return question_groups
 
 # --- 데이터 로드 ---
-description_blocks = load_data('descriptions.json')
-all_questions_data = load_data('questions.json')
-question_lists = get_balanced_questions_grouped(all_questions_data)
+# description_blocks와 all_questions_data를 전역 변수로 먼저 선언하여
+# 함수 실행 여부와 관계없이 존재하도록 함
+description_blocks = None
+all_questions_data = None
+
+try:
+    description_blocks = load_data('descriptions.json')
+    all_questions_data = load_data('questions.json')
+    question_lists = get_balanced_questions_grouped(all_questions_data)
+except Exception as e:
+    st.error(f"초기 데이터 로드 중 오류가 발생했습니다: {e}. 앱 실행 불가.")
+    question_lists = {} # 오류 발생 시 빈 딕셔너리로 초기화하여 앱 중단
 
 st.set_page_config(page_title="RGB 성격 심리 검사", layout="wide")
 
@@ -277,17 +286,22 @@ st.markdown("---")
 if 'stage' not in st.session_state: st.session_state.stage = 'intro_i'
 if 'responses' not in st.session_state: st.session_state.responses = {}
 
-if question_lists and description_blocks: # 데이터 로드가 성공했을 때만 앱 로직 실행
-    all_questions_flat = question_lists['i'] + question_lists['a'] + question_lists['s']
+# 데이터 로드가 성공적으로 되었을 때만 앱 로직 실행
+if question_lists and description_blocks: 
+    all_questions_flat = []
+    for world_key in ['i', 'a', 's']:
+        if world_key in question_lists:
+            all_questions_flat.extend(question_lists[world_key])
+    
     total_questions = len(all_questions_flat)
     current_stage = st.session_state.stage
 
     if 'intro' in current_stage:
         world_code = current_stage.split('_')[1]
         worlds_info = {
-            'i': ("내면 세계", len(question_lists['i'])),
-            'a': ("주변 세계 (가족, 친구)", len(question_lists['a'])),
-            's': ("사회 (업무, 공적 관계)", len(question_lists['s']))
+            'i': ("내면 세계", len(question_lists.get('i', []))),
+            'a': ("주변 세계 (가족, 친구)", len(question_lists.get('a', []))),
+            's': ("사회 (업무, 공적 관계)", len(question_lists.get('s', [])))
         }
         title, num_questions = worlds_info[world_code]
         st.markdown(f"<div class='intro-box'><h1>{title}</h1><h2>지금부터 {title}에 관한 {num_questions}개의 질문이 시작됩니다.</h2></div>", unsafe_allow_html=True)
@@ -298,10 +312,12 @@ if question_lists and description_blocks: # 데이터 로드가 성공했을 때
                 st.rerun()
 
     elif 'quiz' in current_stage:
-        progress = len(st.session_state.responses) / total_questions
+        # total_questions가 0이 아닐 때만 진행률 계산
+        progress = len(st.session_state.responses) / total_questions if total_questions > 0 else 0
         st.progress(progress, text=f"전체 진행률: {len(st.session_state.responses)} / {total_questions}")
         world_code = current_stage.split('_')[1]
-        current_question_list = question_lists[world_code]
+        current_question_list = question_lists.get(world_code, []) # get()을 사용하여 안전하게 접근
+
         next_question = next((q for q in current_question_list if q['id'] not in st.session_state.responses), None)
 
         if next_question:
@@ -356,7 +372,7 @@ if question_lists and description_blocks: # 데이터 로드가 성공했을 때
             index_G = get_world_description_index(score_G, code)
             index_B = get_world_description_index(score_B, code)
             world_results[code] = {
-                'title': title,
+                'title': data, # worlds_map에서 가져온 title
                 'description_R': description_blocks[world_key]['R'][index_R],
                 'description_G': description_blocks[world_key]['G'][index_G],
                 'description_B': description_blocks[world_key]['B'][index_B],
@@ -406,3 +422,5 @@ if question_lists and description_blocks: # 데이터 로드가 성공했을 때
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+else:
+    st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
