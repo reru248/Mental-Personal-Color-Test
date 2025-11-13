@@ -23,11 +23,11 @@ div[data-testid="stDownloadButton"] > button { width: 250px; height: 55px; font-
 """, unsafe_allow_html=True)
 
 
-# --- 폰트 경로 설정 (수정됨) ---
-# 스크립트 파일이 위치한 디렉토리의 절대 경로를 얻습니다. (예: /path/to/Mental-Personal-Color-Test/rgb-test)
+# --- 폰트 경로 설정 ---
+# 스크립트 파일이 위치한 디렉토리의 절대 경로를 얻습니다.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 # 폰트 파일은 현재 디렉토리 (rgb-test) 안에 바로 있습니다.
-font_path = os.path.join(current_dir, 'NanumGothic.ttf') # <-- 'rgb-test' 중복 제거
+font_path = os.path.join(current_dir, 'NanumGothic.ttf') # 경로 중복 제거 상태 유지
 
 if os.path.exists(font_path):
     fm.fontManager.addfont(font_path)
@@ -204,15 +204,14 @@ def generate_result_image(comprehensive_result, font_path):
     return buffer.getvalue()
 
 
-# --- 데이터 로드 함수 (수정됨) ---
-# current_dir이 전역적으로 필요하므로 전역 변수를 함수 밖에서 다시 정의합니다.
+# --- 데이터 로드 함수 ---
 current_dir = os.path.dirname(os.path.abspath(__file__)) 
 
 @st.cache_data
 def load_data(file_name):
     try:
-        # 파일 경로를 current_dir (스크립트 파일이 있는 폴더) 바로 아래의 파일로 설정합니다.
-        file_path = os.path.join(current_dir, file_name) # <-- 'rgb-test' 중복 제거
+        # 파일 경로를 current_dir (스크립트 파일이 있는 폴더) 바로 아래의 파일로 설정
+        file_path = os.path.join(current_dir, file_name)
         with open(file_path, 'r', encoding='utf-8') as f: return json.load(f)
     except FileNotFoundError:
         st.error(f"데이터 파일 '{file_path}'을(를) 찾을 수 없습니다. 폴더 경로를 확인해주세요."); return None
@@ -229,12 +228,9 @@ def get_balanced_questions_grouped(all_questions_data):
     question_groups = {}
     for world in ['i', 'a', 's']:
         world_list = []
-        # 각 유형별(R, G, B) P(긍정), S(부정) 문항 중 개수가 적은 것을 기준으로 문항 수를 맞춥니다.
         r_count = min(len(typed_questions.get(f'RP{world}',[])), len(typed_questions.get(f'RS{world}',[])))
         g_count = min(len(typed_questions.get(f'GP{world}',[])), len(typed_questions.get(f'GS{world}',[])))
         b_count = min(len(typed_questions.get(f'BP{world}',[])), len(typed_questions.get(f'BS{world}',[])))
-        
-        # P/S 문항을 쌍으로 묶어 리스트에 추가합니다.
         world_list.extend(typed_questions.get(f'RP{world}',[])[:r_count] + typed_questions.get(f'RS{world}',[])[:r_count])
         world_list.extend(typed_questions.get(f'GP{world}',[])[:g_count] + typed_questions.get(f'GS{world}',[])[:g_count])
         world_list.extend(typed_questions.get(f'BP{world}',[])[:b_count] + typed_questions.get(f'BS{world}',[])[:b_count])
@@ -249,8 +245,6 @@ def get_balanced_questions_grouped(all_questions_data):
     return question_groups
 
 # --- 데이터 로드 ---
-# description_blocks와 all_questions_data를 전역 변수로 먼저 선언하여
-# 함수 실행 여부와 관계없이 존재하도록 함
 description_blocks = None
 all_questions_data = None
 
@@ -259,7 +253,6 @@ try:
     all_questions_data = load_data('questions.json')
     question_lists = get_balanced_questions_grouped(all_questions_data)
 except Exception as e:
-    # 경로 문제가 해결되었더라도 데이터 자체의 문제가 있을 수 있으므로 오류 메시지 유지
     st.error(f"초기 데이터 로드 중 오류가 발생했습니다: {e}. 앱 실행 불가.")
     question_lists = {} # 오류 발생 시 빈 딕셔너리로 초기화하여 앱 중단
 
@@ -279,13 +272,9 @@ def get_comprehensive_index(percentage):
     else: return 9
 
 def get_world_description_index(score, world_type):
-    # 'i' 내면 세계는 총 96점 만점(-48 ~ +48), 10단계
     if world_type == 'i':
-        # (score + 48) / 9.6 이지만, 안정성을 위해 9.7을 사용한 듯 함 (0~9 인덱스)
-        index = math.floor((score + 48) / 9.7) 
-    # 'a', 's' 세계는 총 80점 만점(-40 ~ +40), 10단계
-    else: 
-        # (score + 40) / 8.0 이지만, 안정성을 위해 8.1을 사용한 듯 함 (0~9 인덱스)
+        index = math.floor((score + 48) / 9.7)
+    else:
         index = math.floor((score + 40) / 8.1)
     return min(max(index, 0), 9)
 
@@ -353,24 +342,23 @@ if question_lists and description_blocks:
         st.success("검사가 완료되었습니다! 아래에서 결과를 확인하세요. 🎉")
         st.markdown("---")
         
-        # --- 점수 계산 ---
         scores = { f"{main}{sub}{world}":0 for main in "RGB" for sub in "PS" for world in "ias" }
         question_map = {q['id']: q for q in all_questions_flat}
         for q_id, value in st.session_state.responses.items():
             q_type = question_map[q_id]['type']
             if q_type in scores: scores[q_type] += value
 
-        # --- 종합 점수 및 색상 계산 ---
         total_score_R = (scores['RPi']+scores['RPa']+scores['RPs']) - (scores['RSi']+scores['RSa']+scores['RSs'])
         total_score_G = (scores['GPi']+scores['GPa']+scores['GPs']) - (scores['GSi']+scores['GSa']+scores['GSs'])
         total_score_B = (scores['BPi']+scores['BPa']+scores['BPs']) - (scores['BSi']+scores['BSa']+scores['BSs'])
         
-        # 기본 128 (중간값) + 총점 * 2 (점수 범위 -128 ~ +128에 대응)
         comp_final = {'R': 128 + total_score_R*2, 'G': 128 + total_score_G*2, 'B': 128 + total_score_B*2}
         
-        # 0 ~ 255 범위 유지
-        comp_abs = {k: min(max(v, 0), 255) for k, v in comp_final.items()} # 255 초과 방지 추가
-        comp_perc = {k: round((v / 255) * 100, 1) for k, v in comp_abs.items()} # 256이 아닌 255로 계산
+        comp_abs = {k: min(max(v, 0), 255) for k, v in comp_final.items()}
+        
+        # --- 수정된 부분: 분모를 255에서 256.0으로 변경하여 128을 50.0%로 정확하게 맞춥니다. ---
+        comp_perc = {k: round((v / 256.0) * 100, 1) for k, v in comp_abs.items()}
+        
         comp_hex = '#{:02X}{:02X}{:02X}'.format(int(comp_abs['R']), int(comp_abs['G']), int(comp_abs['B']))
         
         comp_indices = { k: get_comprehensive_index(p) for k, p in comp_perc.items() }
@@ -379,7 +367,6 @@ if question_lists and description_blocks:
             'descriptions': { k: description_blocks['comprehensive'][k][comp_indices[k]] for k in "RGB" }
         }
 
-        # --- 세계별 점수 계산 및 설명 로드 ---
         world_results = {}; worlds_map = {'i': '내면 세계', 'a': '주변 세계', 's': '사회'}; world_key_map = {'i': 'inner', 'a': 'relationships', 's': 'social'}
         for code, data in worlds_map.items():
             world_key = world_key_map[code]
@@ -396,7 +383,6 @@ if question_lists and description_blocks:
                 'description_B': description_blocks[world_key]['B'][index_B],
             }
 
-        # --- 결과 화면 출력 ---
         st.header(f"📈 당신의 종합 분석 결과")
         col1, col2 = st.columns([1, 1])
         with col1:
@@ -435,7 +421,6 @@ if question_lists and description_blocks:
                 st.markdown(f"**🔵 (사고방식/계획/판단):** {data['description_B']}")
         st.markdown("---")
         
-        # --- 결과 이미지 다운로드 ---
         image_buffer = generate_result_image(comprehensive_result, font_path)
         st.download_button(label="📥 종합 결과 이미지 저장하기", data=image_buffer, file_name="RGB_personality_result.png", mime="image/png")
         
@@ -443,5 +428,4 @@ if question_lists and description_blocks:
             st.session_state.clear()
             st.rerun()
 else:
-    # 데이터 로드 실패 시 마지막으로 에러 메시지를 표시하여 사용자에게 상황을 알립니다.
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
