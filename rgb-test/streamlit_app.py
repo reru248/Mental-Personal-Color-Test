@@ -38,7 +38,7 @@ st.markdown("""
 .intro-box h1 { font-size: 2.5rem; margin: 0 0 8px 0; }
 .intro-box h2 { font-size: 1.2rem; color: #555; margin: 0 0 12px 0; }
 div[data-testid="stButton"] > button {
-    width: 160px;
+    width: 150px;
     height: 70px;
     font-size: 1.25rem;
     font-weight: bold;
@@ -210,3 +210,4 @@ else:
         comp_res = {'hex': hex_color, 'percentages': perc, 'descriptions': {'R': '진취형 설명', 'G': '중재형 설명', 'B': '신중형 설명'}}
         buf = generate_result_image(comp_res, font_path)
         st.download_button("📥 결과 이미지 저장", data=buf, file_name="RGB_result.png", mime="image/png")
+
