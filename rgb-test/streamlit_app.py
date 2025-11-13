@@ -24,10 +24,8 @@ div[data-testid="stDownloadButton"] > button { width: 250px; height: 55px; font-
 
 
 # --- 폰트 경로 설정 ---
-# 스크립트 파일이 위치한 디렉토리의 절대 경로를 얻습니다.
 current_dir = os.path.dirname(os.path.abspath(__file__))
-# 폰트 파일은 현재 디렉토리 (rgb-test) 안에 바로 있습니다.
-font_path = os.path.join(current_dir, 'NanumGothic.ttf') # 경로 중복 제거 상태 유지
+font_path = os.path.join(current_dir, 'NanumGothic.ttf')
 
 if os.path.exists(font_path):
     fm.fontManager.addfont(font_path)
@@ -37,166 +35,179 @@ if os.path.exists(font_path):
 else:
     st.warning(f"한글 폰트 파일('{font_path}')을 찾을 수 없습니다. 그래프/이미지의 한글이 깨질 수 있습니다.")
     
-# --- 종합 결과 이미지 생성 함수 (동적 높이 조절 적용) ---
+# --- 종합 결과 이미지 생성 함수 (스타일 반영 수정) ---
 def generate_result_image(comprehensive_result, font_path):
     # --- 1. 초기 설정 및 폰트 로드 ---
-    img_width = 900 # 이미지 폭은 고정 (내용이 옆으로 넘치지 않도록 충분히 넓게)
-    
-    # 폰트 로드 시도
+    img_width = 900
+    padding_x = 50 # 좌우 패딩
+
     try:
-        title_font = ImageFont.truetype(font_path, 40)
-        text_font_bold = ImageFont.truetype(font_path, 22)
-        text_font = ImageFont.truetype(font_path, 18)
+        title_font = ImageFont.truetype(font_path, 36) # 제목 폰트 크기 조정
+        section_title_font = ImageFont.truetype(font_path, 28) # 섹션 제목 폰트
+        text_font_bold = ImageFont.truetype(font_path, 20) # 색상 이름/퍼센티지 바 텍스트
+        text_font = ImageFont.truetype(font_path, 16) # 상세 설명 본문
+        hex_font = ImageFont.truetype(font_path, 24) # 헥스코드 폰트
     except IOError:
         st.warning(f"폰트 파일 '{font_path}'을(를) 찾을 수 없습니다. 이미지 생성에 기본 폰트를 사용합니다.")
-        title_font, text_font_bold, text_font = ImageFont.load_default(), ImageFont.load_default(), ImageFont.load_default()
+        title_font, section_title_font, text_font_bold, text_font, hex_font = ImageFont.load_default(), ImageFont.load_default(), ImageFont.load_default(), ImageFont.load_default(), ImageFont.load_default()
 
     # --- 2. 이미지 높이 계산을 위한 첫 번째 렌더링 (가상) ---
-    temp_img = Image.new("RGB", (img_width, 100), color="#FDFDFD") # 임시 이미지
-    temp_draw = ImageDraw.Draw(temp_img) # 임시 draw 객체
+    temp_img = Image.new("RGB", (img_width, 100), color="#FDFDFD")
+    temp_draw = ImageDraw.Draw(temp_img)
 
-    # 텍스트 그리기 시작 Y 좌표 (높이 계산용)
-    calculated_y_for_height = 60
+    calculated_y_for_height = 60 # 시작 Y 좌표
 
-    # 2-1. 제목 "퍼스널컬러 심리검사 종합 결과"
-    title_text = "퍼스널컬러 심리검사 종합 결과"
-    title_bbox = temp_draw.textbbox((0, 0), title_text, font=title_font)
-    title_height = title_bbox[3] - title_bbox[1]
-    calculated_y_for_height += title_height / 2 
-    calculated_y_for_height += title_height / 2 + 40 
+    # 2-1. 제목 "당신의 종합 분석 결과"
+    title_text = "당신의 종합 분석 결과"
+    calculated_y_for_height += title_font.size + 30
 
-    # 2-2. 색상 바 및 "나의 종합 성격 색상" 텍스트
-    hex_color = comprehensive_result['hex']
+    # 2-2. 섹션 제목 "종합 성격 색상" 및 "유형별 강도 시각화"
+    calculated_y_for_height += section_title_font.size + 40 
     
-    calculated_y_for_height += 10 # 여백 (사각형 위)
-    calculated_y_for_height += 150 + 20 # 사각형 자체의 높이 + 사각형 아래 여백
+    # 2-3. 종합 성격 색상 블록
+    calculated_y_for_height += 150 # 색상 블록 높이
+    calculated_y_for_height += hex_font.size + 20 # 헥스코드 높이
     
-    text_color_info = f"나의 종합 성격 색상: {hex_color}"
-    color_info_bbox = temp_draw.textbbox((0, 0), text_color_info, font=text_font_bold)
-    color_info_height = color_info_bbox[3] - color_info_bbox[1]
-    calculated_y_for_height += color_info_height + 40 
+    # 2-4. 퍼센티지 바 섹션 (3개)
+    # R 바: (20px 텍스트 + 15px 막대 + 여백) * 3
+    calculated_y_for_height += (text_font_bold.size + 35) * 3
+    calculated_y_for_height += 60 # 섹션 아래 여백
 
-    # 2-3. 퍼센티지 바 섹션
-    percentages = comprehensive_result['percentages']
-    
-    # R 바
-    calculated_y_for_height += (text_font_bold.size + 6)
-    calculated_y_for_height += (20 + 25)
-    
-    # G 바
-    calculated_y_for_height += (text_font_bold.size + 6)
-    calculated_y_for_height += (20 + 25)
-    
-    # B 바
-    calculated_y_for_height += (text_font_bold.size + 6)
-    calculated_y_for_height += (20 + 25)
-    
-    calculated_y_for_height += 40 # 퍼센티지 바 섹션 아래 여백
-
-    # 2-4. "상세 성격 분석" 제목
+    # 2-5. "상세 성격 분석" 제목
     detail_title_text = "상세 성격 분석"
-    detail_title_bbox = temp_draw.textbbox((0, 0), detail_title_text, font=title_font)
-    detail_title_height = detail_title_bbox[3] - detail_title_bbox[1]
-    calculated_y_for_height += detail_title_height + 80 
+    calculated_y_for_height += section_title_font.size + 40 
 
-    # 2-5. 상세 설명 (descriptions)의 높이 계산
+    # 2-6. 상세 설명 (descriptions)의 높이 계산
     descriptions = comprehensive_result['descriptions']
     
-    def calculate_multiline_text_block_height(text, font, width_limit, draw_obj):
+    def calculate_multiline_text_block_height(text, font, width_limit, draw_obj, section_text):
         total_block_height = 0
-        bullet_points = [p.strip() for p in text.split('•') if p.strip()]
+        # 색상 제목 높이 (예: 🔴 진취형(R): ...)
+        total_block_height += text_font_bold.size + 15 
         
-        for point in bullet_points:
-            line_with_bullet = "• " + point
-            lines = []
-            words = line_with_bullet.split(' ')
-            line_buffer = ""
-            
-            available_width = width_limit - 80 
+        # 실제 줄바꿈 계산
+        lines = []
+        words = section_text.split(' ')
+        line_buffer = ""
+        available_width = width_limit - (padding_x * 2) # 좌우 패딩을 제외한 폭
 
-            for word in words:
-                if draw_obj.textlength(line_buffer + word, font=font) < available_width:
-                    line_buffer += word + " "
-                else:
-                    lines.append(line_buffer)
-                    line_buffer = word + " "
-            lines.append(line_buffer)
-            
-            for _ in lines:
-                total_block_height += font.size + 6 
-            total_block_height += 10 
+        for word in words:
+            if draw_obj.textlength(line_buffer + word, font=font) < available_width:
+                line_buffer += word + " "
+            else:
+                lines.append(line_buffer)
+                line_buffer = word + " "
+        lines.append(line_buffer)
+        
+        for _ in lines:
+            total_block_height += font.size + 6 
+        total_block_height += 20 # 아래 여백
         return total_block_height
 
-    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['R'], text_font, img_width, temp_draw)
-    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['G'], text_font, img_width, temp_draw)
-    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['B'], text_font, img_width, temp_draw)
+    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['R'], text_font, img_width, temp_draw, descriptions['R'])
+    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['G'], text_font, img_width, temp_draw, descriptions['G'])
+    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['B'], text_font, img_width, temp_draw, descriptions['B'])
     
-    final_img_height = int(calculated_y_for_height) + 100 
+    final_img_height = int(calculated_y_for_height) + 50 # 전체 하단 여백
 
     # --- 3. 실제 이미지 생성 및 그리기 ---
-    img = Image.new("RGB", (img_width, final_img_height), color="#FDFDFD")
+    img = Image.new("RGB", (img_width, final_img_height), color="#FFFFFF") # 배경 흰색으로 변경
     draw = ImageDraw.Draw(img)
 
     y_cursor = 60 
     
-    # 3-1. 제목 "퍼스널컬러 심리검사 종합 결과"
-    draw.text((img_width / 2, y_cursor), title_text, font=title_font, fill="black", anchor="mm")
-    y_cursor += title_height + 40 
+    # 3-1. 제목 "당신의 종합 분석 결과"
+    draw.text((padding_x, y_cursor), title_text, font=title_font, fill="#333333")
+    y_cursor += title_font.size + 30 
+    
+    # 3-2. 섹션 제목 (종합 성격 색상, 유형별 강도 시각화)
+    # 이미지와 유사하게 두 섹션 제목을 한 줄에 배치합니다.
+    draw.text((padding_x, y_cursor), "🔴 종합 성격 색상", font=section_title_font, fill="#333333")
+    draw.text((img_width / 2 + 20, y_cursor), "📊 유형별 강도 시각화", font=section_title_font, fill="#333333")
+    y_cursor += section_title_font.size + 20
 
-    # 3-2. 색상 바 및 "나의 종합 성격 색상" 텍스트
-    draw.rectangle([100, y_cursor, 800, y_cursor + 150], fill=hex_color, outline="gray", width=2)
-    y_cursor += 150 + 20 
+    # --- 3-3. 왼쪽: 종합 성격 색상 (색상 블록) ---
+    hex_color = comprehensive_result['hex']
+    color_box_y_end = y_cursor + 150
+    draw.rectangle([padding_x, y_cursor, img_width / 2 - 20, color_box_y_end], fill=hex_color, outline="#CCCCCC", width=1)
+    
+    # 헥스코드 표시
+    draw.text((padding_x + (img_width / 2 - 20 - padding_x) / 2, color_box_y_end + 10), 
+              hex_color, font=hex_font, fill="#333333", anchor="mt")
+    y_cursor = color_box_y_end + hex_font.size + 30
 
-    draw.text((img_width / 2, y_cursor), text_color_info, font=text_font_bold, fill="black", anchor="mm")
-    y_cursor += color_info_height + 40 
+    # --- 3-4. 오른쪽: 퍼센티지 바 섹션 ---
+    percentages = comprehensive_result['percentages']
+    
+    # R 바
+    bar_y_start = y_cursor - 150 + 20 # 색상 블록 기준으로 y_cursor 재조정
+    bar_x_start = img_width / 2 + 20
+    bar_width = img_width - bar_x_start - padding_x
+    
+    # 폰트 색상 R, G, B
+    colors = {'R': '#E63946', 'G': '#7FB069', 'B': '#457B9D'}
+    labels = {'R': '진취형 (R)', 'G': '중재형 (G)', 'B': '신중형 (B)'}
+    
+    for k in ['B', 'G', 'R']: # 이미지와 같이 B, G, R 순서로 그립니다.
+        bar_height = 20
+        perc = percentages[k]
+        
+        # 라벨 및 퍼센트 텍스트
+        draw.text((bar_x_start, bar_y_start), labels[k], font=text_font_bold, fill="#333333")
+        draw.text((bar_x_start + bar_width + 10, bar_y_start), f"{perc}%", font=text_font_bold, fill="#333333")
+        
+        # 막대 배경 (총 길이)
+        draw.rectangle([bar_x_start, bar_y_start + 30, bar_x_start + bar_width, bar_y_start + 30 + bar_height], fill='#E0E0E0', outline="#CCCCCC", width=1)
+        
+        # 실제 막대 (70%까지 전체 폭 사용)
+        actual_bar_length = int(bar_width * (perc / 100))
+        draw.rectangle([bar_x_start, bar_y_start + 30, bar_x_start + actual_bar_length, bar_y_start + 30 + bar_height], fill=colors[k])
+        
+        bar_y_start += (bar_height + 40) # 다음 막대와의 간격
 
-    # 3-3. 퍼센티지 바 섹션
-    draw.text((100, y_cursor), f"진취형(R): {percentages['R']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_cursor + 35, 100 + (percentages['R'] * 7), y_cursor + 55], fill='#E63946')
-    y_cursor += 80 
+    y_cursor = bar_y_start + 20 # 퍼센티지 바 섹션 아래 여백으로 커서 이동
 
-    draw.text((100, y_cursor), f"중재형(G): {percentages['G']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_cursor + 35, 100 + (percentages['G'] * 7), y_cursor + 55], fill='#7FB069')
-    y_cursor += 80 
+    # 3-5. "상세 성격 분석" 제목
+    draw.text((padding_x, y_cursor), "📜 상세 성격 분석", font=section_title_font, fill="#333333")
+    y_cursor += section_title_font.size + 40 
 
-    draw.text((100, y_cursor), f"신중형(B): {percentages['B']}%", font=text_font_bold, fill="black")
-    draw.rectangle([100, y_cursor + 35, 100 + (percentages['B'] * 7), y_cursor + 55], fill='#457B9D')
-    y_cursor += 80 + 40 
-
-    # 3-4. "상세 성격 분석" 제목
-    draw.text((50, y_cursor), "상세 성격 분석", font=title_font, fill="black")
-    y_cursor += detail_title_height + 80 
-
-    # 3-5. 상세 설명 (descriptions) 그리기
-    def draw_multiline_text_by_bullet_actual(text, y_start, width_limit, draw_obj, font_obj):
-        bullet_points = [p.strip() for p in text.split('•') if p.strip()]
+    # 3-6. 상세 설명 (descriptions) 그리기
+    def draw_description_block(title, description, color_code, y_start, width_limit, draw_obj, title_font_obj, text_font_obj):
         current_y_local = y_start 
         
-        for point in bullet_points:
-            line_with_bullet = "• " + point
-            lines = []
-            words = line_with_bullet.split(' ')
-            line_buffer = ""
-            
-            available_width = width_limit - 80 
+        # 색상 제목 (🔴 진취형(R): ...)
+        draw_obj.text((padding_x, current_y_local), f"{color_code} {title}", font=title_font_obj, fill="#333333")
+        current_y_local += title_font_obj.size + 15
 
-            for word in words:
-                if draw_obj.textlength(line_buffer + word, font=font_obj) < available_width: 
-                    line_buffer += word + " "
-                else:
-                    lines.append(line_buffer)
-                    line_buffer = word + " "
-            lines.append(line_buffer)
+        # 실제 설명 그리기 (줄바꿈 처리)
+        lines = []
+        words = description.split(' ')
+        line_buffer = ""
+        available_width = width_limit - (padding_x * 2) 
+
+        for word in words:
+            if draw_obj.textlength(line_buffer + word, font=text_font_obj) < available_width: 
+                line_buffer += word + " "
+            else:
+                lines.append(line_buffer)
+                line_buffer = word + " "
+        lines.append(line_buffer)
+        
+        for line in lines:
+            draw_obj.text((padding_x, current_y_local), line, font=text_font_obj, fill="#555555")
+            current_y_local += text_font_obj.size + 6 
             
-            for line in lines:
-                draw_obj.text((80, current_y_local), line, font=font_obj, fill="#333333")
-                current_y_local += font_obj.size + 6 
-            current_y_local += 10 
+        current_y_local += 30 # 블록 간 여백
         return current_y_local 
 
-    y_cursor = draw_multiline_text_by_bullet_actual(descriptions['R'], y_cursor, img_width, draw, text_font)
-    y_cursor = draw_multiline_text_by_bullet_actual(descriptions['G'], y_cursor, img_width, draw, text_font)
-    y_cursor = draw_multiline_text_by_bullet_actual(descriptions['B'], y_cursor, img_width, draw, text_font)
+    # R 블록
+    y_cursor = draw_description_block("진취형(R) 성향 분석", descriptions['R'], '🔴', y_cursor, img_width, draw, text_font_bold, text_font)
+    
+    # G 블록
+    y_cursor = draw_description_block("중재형(G) 성향 분석", descriptions['G'], '🟢', y_cursor, img_width, draw, text_font_bold, text_font)
+    
+    # B 블록
+    y_cursor = draw_description_block("신중형(B) 성향 분석", descriptions['B'], '🔵', y_cursor, img_width, draw, text_font_bold, text_font)
     
     # --- 4. 최종 이미지 저장 및 반환 ---
     buffer = io.BytesIO()
@@ -210,7 +221,6 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 @st.cache_data
 def load_data(file_name):
     try:
-        # 파일 경로를 current_dir (스크립트 파일이 있는 폴더) 바로 아래의 파일로 설정
         file_path = os.path.join(current_dir, file_name)
         with open(file_path, 'r', encoding='utf-8') as f: return json.load(f)
     except FileNotFoundError:
@@ -356,7 +366,7 @@ if question_lists and description_blocks:
         
         comp_abs = {k: min(max(v, 0), 255) for k, v in comp_final.items()}
         
-        # --- 수정된 부분: 분모를 255에서 256.0으로 변경하여 128을 50.0%로 정확하게 맞춥니다. ---
+        # --- 퍼센티지 환산 수정 (256.0을 분모로 사용하여 128을 정확히 50.0%로 설정) ---
         comp_perc = {k: round((v / 256.0) * 100, 1) for k, v in comp_abs.items()}
         
         comp_hex = '#{:02X}{:02X}{:02X}'.format(int(comp_abs['R']), int(comp_abs['G']), int(comp_abs['B']))
@@ -421,6 +431,7 @@ if question_lists and description_blocks:
                 st.markdown(f"**🔵 (사고방식/계획/판단):** {data['description_B']}")
         st.markdown("---")
         
+        # --- 수정된 함수 사용 ---
         image_buffer = generate_result_image(comprehensive_result, font_path)
         st.download_button(label="📥 종합 결과 이미지 저장하기", data=image_buffer, file_name="RGB_personality_result.png", mime="image/png")
         
