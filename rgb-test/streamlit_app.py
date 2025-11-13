@@ -1,4 +1,4 @@
-# streamlit_app.py (최종 수정본)
+# streamlit_app.py (최종 정리본 - 디버그 출력 제거 + 질문 로드 문제 해결)
 import streamlit as st
 import json
 import matplotlib.pyplot as plt
@@ -10,27 +10,13 @@ import random
 import math
 
 # -------------------------
-# ✅ 경로 자동 탐색 (rgb-test 중복 문제 완전 해결)
+# ✅ 경로 자동 탐색
 # -------------------------
 current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# 만약 현재 디렉토리가 rgb-test라면 그대로 사용,
-# 아니라면 rgb-test 폴더를 찾아 들어감
-if os.path.basename(current_dir) == "rgb-test":
-    resources_dir = current_dir
-else:
-    resources_dir = os.path.join(current_dir, "rgb-test")
+resources_dir = current_dir if os.path.basename(current_dir) == "rgb-test" else os.path.join(current_dir, "rgb-test")
 
 # -------------------------
-# 디버그용 정보 출력 (Streamlit에 표시됨)
-# -------------------------
-st.write("📁 현재 리소스 경로:", resources_dir)
-st.write("📄 폰트 파일 존재 여부:", os.path.exists(os.path.join(resources_dir, "NanumGothic.ttf")))
-st.write("📄 질문 파일 존재 여부:", os.path.exists(os.path.join(resources_dir, "questions.json")))
-st.write("📄 설명 파일 존재 여부:", os.path.exists(os.path.join(resources_dir, "descriptions.json")))
-
-# -------------------------
-# CSS: 버튼 / 질문 박스 스타일
+# CSS 스타일
 # -------------------------
 st.markdown("""
 <style>
@@ -73,20 +59,16 @@ div[data-testid="stDownloadButton"] > button {
 """, unsafe_allow_html=True)
 
 # -------------------------
-# ✅ 폰트 설정
+# 폰트 설정
 # -------------------------
 font_path = os.path.join(resources_dir, "NanumGothic.ttf")
-
 if os.path.exists(font_path):
-    try:
-        fm.fontManager.addfont(font_path)
-        font_name = fm.FontProperties(fname=font_path).get_name()
-        plt.rc("font", family=font_name)
-        plt.rcParams["axes.unicode_minus"] = False
-    except Exception as e:
-        st.warning(f"폰트 등록 중 오류: {e}")
+    fm.fontManager.addfont(font_path)
+    font_name = fm.FontProperties(fname=font_path).get_name()
+    plt.rc("font", family=font_name)
+    plt.rcParams["axes.unicode_minus"] = False
 else:
-    st.warning(f"⚠️ 폰트 파일을 찾을 수 없습니다: {font_path}")
+    st.warning("⚠️ 한글 폰트 파일이 누락되었습니다. (NanumGothic.ttf)")
 
 # -------------------------
 # 결과 이미지 생성 함수
@@ -144,22 +126,25 @@ def generate_result_image(comprehensive_result, font_path):
 # -------------------------
 @st.cache_data
 def load_data(filename):
+    """JSON 파일을 자동 형식 감지하여 로드"""
     path = os.path.join(resources_dir, filename)
     if not os.path.exists(path):
         raise FileNotFoundError(path)
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    # 리스트로 직접 되어있든, {"questions": [...]} 형태든 자동 처리
+    if isinstance(data, dict) and "questions" in data:
+        data = data["questions"]
+    return data
 
 # -------------------------
 # 질문 그룹화
 # -------------------------
-@st.cache_data
-def get_balanced_questions_grouped(all_data):
-    if not all_data:
+def get_balanced_questions_grouped(q_list):
+    if not q_list:
         return []
-    qs = all_data.get("questions", [])
     typed = {}
-    for q in qs:
+    for q in q_list:
         t = q.get("type")
         if t:
             typed.setdefault(t, []).append(q)
@@ -187,22 +172,21 @@ st.markdown("---")
 
 try:
     descriptions = load_data("descriptions.json")
-    questions_all = load_data("questions.json")
+    questions_raw = load_data("questions.json")
 except FileNotFoundError as e:
     st.error(f"데이터 파일을 찾을 수 없습니다: {e}")
     st.stop()
 
-questions = get_balanced_questions_grouped(questions_all)
-total_questions = len(questions)
+question_list = get_balanced_questions_grouped(questions_raw)
+total_questions = len(question_list)
 
 if "responses" not in st.session_state:
     st.session_state["responses"] = {}
 if "stage" not in st.session_state:
     st.session_state["stage"] = -1  # -1: 시작 전
 
-if total_questions == 0:
-    st.warning("불러온 질문이 없습니다. questions.json을 확인하세요.")
-else:
+# ✅ 질문이 비어있지 않으면 테스트 시작 화면 표시
+if total_questions > 0:
     if st.session_state["stage"] == -1:
         st.markdown("<div class='intro-box'><h1>테스트 시작</h1><h2>아래 버튼을 눌러 시작하세요.</h2></div>", unsafe_allow_html=True)
         cols = st.columns([1.5, 1.2, 1])
@@ -212,7 +196,7 @@ else:
                 st.rerun()
     elif st.session_state["stage"] < total_questions:
         cur = st.session_state["stage"]
-        q = questions[cur]
+        q = question_list[cur]
         st.markdown(f"<div class='question-box'><h2>Q{q['id']}. {q['text']}</h2></div>", unsafe_allow_html=True)
         label_cols = st.columns([1, 5, 1])
         with label_cols[0]:
@@ -266,21 +250,17 @@ else:
             st.pyplot(fig)
 
         # 상세 설명
-        st.header("📜 상세 성격 분석")
-        def get_idx(p):
-            return min(int(p // 10), 9)
+        def get_idx(p): return min(int(p // 10), 9)
         r_idx, g_idx, b_idx = get_idx(perc["R"]), get_idx(perc["G"]), get_idx(perc["B"])
+        r_text = descriptions["R"][r_idx]
+        g_text = descriptions["G"][g_idx]
+        b_text = descriptions["B"][b_idx]
 
-        descs = descriptions
-        r_text = descs["R"][r_idx] if isinstance(descs.get("R"), list) else descs.get("R", "")
-        g_text = descs["G"][g_idx] if isinstance(descs.get("G"), list) else descs.get("G", "")
-        b_text = descs["B"][b_idx] if isinstance(descs.get("B"), list) else descs.get("B", "")
-
+        st.header("📜 상세 성격 분석")
         st.info(f"**🔴 진취형(R):** {r_text}")
         st.success(f"**🟢 중재형(G):** {g_text}")
         st.warning(f"**🔵 신중형(B):** {b_text}")
 
-        # 이미지 다운로드
         comp_res = {"hex": hex_color, "percentages": perc, "descriptions": {"R": r_text, "G": g_text, "B": b_text}}
         img_buf = generate_result_image(comp_res, font_path)
         st.download_button("📥 결과 이미지 저장", img_buf, "RGB_personality_result.png", "image/png")
@@ -288,3 +268,5 @@ else:
         if st.button("다시 검사하기"):
             st.session_state.clear()
             st.rerun()
+else:
+    st.error("⚠️ 질문 데이터를 불러오지 못했습니다. questions.json 파일 구조를 확인하세요.")
