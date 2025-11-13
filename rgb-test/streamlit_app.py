@@ -298,7 +298,7 @@ cols = st.columns([1.5, 1.2, 1])  # <-- 이 줄을 바꿔서 버튼 위치를 �
 with cols[2]:  # cols[2]에 버튼을 놓았기 때문에 화면 오른쪽 쪽으로 이동합니다.
     if st.button("시작하기", key="start"):
         st.session_state['stage'] = 0
-        st.experimental_rerun()
+        st.rerun()
 
 # 검사 진행
 if total_questions == 0:
@@ -326,7 +326,7 @@ else:
                 if st.button(str(val), key=f"q{q['id']}_val{val}"):
                     st.session_state['responses'][q['id']] = {'type': q['type'], 'value': val}
                     st.session_state['stage'] = cur + 1
-                    st.experimental_rerun()
+                    st.rerun()
     else:
         # 결과 계산
         st.balloons()
@@ -417,4 +417,5 @@ else:
 
         if st.button("다시 검사하기"):
             st.session_state.clear()
-            st.experimental_rerun()
+            st.rerun()
+
