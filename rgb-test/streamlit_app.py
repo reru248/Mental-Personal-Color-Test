@@ -41,11 +41,9 @@ def safe_text_width(draw_obj, text, font):
     if not text:
         return 0
     try:
-        # 텍스트 바운딩 박스 계산
         bbox = draw_obj.textbbox((0, 0), text, font=font)
         return bbox[2] - bbox[0]
     except Exception:
-        # 폰트 로드 실패 등 비상 상황 시 대략적인 너비 추정
         return len(text) * font.size // 2 
 
 
@@ -73,7 +71,6 @@ def generate_result_image(comprehensive_result, font_path):
     calculated_y_for_height += title_font.size + 30
     calculated_y_for_height += section_title_font.size + 20 
     
-    # 종합 색상 및 퍼센트 바 섹션의 최대 높이 계산 (높은 쪽을 선택)
     color_box_height = 150 + hex_font.size + 30
     bar_section_height = (text_font_bold.size + 30) * 3 + 20 
     calculated_y_for_height += max(color_box_height, bar_section_height) + 40 
@@ -100,9 +97,11 @@ def generate_result_image(comprehensive_result, font_path):
                 line_buffer = word + " "
         lines.append(line_buffer)
         
+        # 수정: 줄 간격을 text_font.size + 10으로 늘려 겹침 방지 및 가독성 확보
         for _ in lines:
-            total_block_height += font.size + 6 
-        total_block_height += 100 # <-- 문단 간격 확장 (30 -> 50)
+            total_block_height += font.size + 10 
+            
+        total_block_height += 70 # <-- 문단 간격 대폭 확대 (50 -> 70)
         return total_block_height
 
     calculated_y_for_height += calculate_multiline_text_block_height(descriptions['R'], text_font, img_width, temp_draw)
@@ -172,7 +171,7 @@ def generate_result_image(comprehensive_result, font_path):
     def draw_description_block(title, description, color_code, y_start, width_limit, draw_obj, title_font_obj, text_font_obj):
         current_y_local = y_start 
         
-        # 색상 코드(🔴/🟢/🔵)를 텍스트로 대체하여 안정화
+        # 색상 코드(🔴/🟢/🔵)를 텍스트 앞에 붙여서 가독성 확보
         color_map = {'R': '🔴', 'G': '🟢', 'B': '🔵'}
         draw_obj.text((padding_x, current_y_local), f"{color_map[color_code]} {title}", font=title_font_obj, fill="#333333")
         current_y_local += title_font_obj.size + 15
@@ -192,9 +191,11 @@ def generate_result_image(comprehensive_result, font_path):
         
         for line in lines:
             draw_obj.text((padding_x, current_y_local), line, font=text_font_obj, fill="#555555")
-            current_y_local += text_font_obj.size + 6 
+            # 수정: 줄 간격 확대
+            current_y_local += text_font_obj.size + 10 
             
-        current_y_local += 50 # <-- 문단 간격 확장 (30 -> 50)
+        # 수정: 문단 간격 대폭 확대
+        current_y_local += 70 
         return current_y_local
 
     # R 블록
@@ -434,5 +435,3 @@ if question_lists and description_blocks:
             st.rerun()
 else:
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
-
-
