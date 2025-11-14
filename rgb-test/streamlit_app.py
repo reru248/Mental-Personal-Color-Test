@@ -16,7 +16,7 @@ st.markdown("""
 .intro-box { text-align: center; padding: 2rem; }
 .intro-box h1 { font-size: 2.5rem; }
 .intro-box h2 { font-size: 1.5rem; color: #555; margin-bottom: 2rem; }
-div[data-testid="stButton"] > button { width: 140px; height: 55px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; border: 2px solid #e0e0e0; }
+div[data-testid="stButton"] > button { width: 120px; height: 55px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; border: 2px solid #e0e0e0; }
 div[data-testid="stButton"] > button:hover { border-color: #457B9D; color: #457B9D; }
 div[data-testid="stDownloadButton"] > button { width: 250px; height: 55px; font-size: 1.2rem; font-weight: bold; }
 </style>
@@ -50,7 +50,7 @@ def safe_text_width(draw_obj, text, font):
 # --- 종합 결과 이미지 생성 함수 (스타일 및 겹침 문제 해결 반영) ---
 def generate_result_image(comprehensive_result, world_results, font_path):
     # --- 1. 초기 설정 및 폰트 로드 ---
-    img_width = 1000  # 이미지 너비 유지
+    img_width = 1200  # 이미지 너비 증가 (1200px)
     padding_x = 20    # 좌우 여백 유지
     
     title_font, section_title_font, sub_section_title_font, text_font_bold, text_font, hex_font = [ImageFont.load_default()] * 6
@@ -67,6 +67,10 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     # --- 2. 이미지 높이 계산을 위한 첫 번째 렌더링 (가상) ---
     temp_img = Image.new("RGB", (img_width, 100), color="#FDFDFD")
     temp_draw = ImageDraw.Draw(temp_img)
+    
+    # 2-1. 공통 너비 설정
+    # 좌우 상세/세계별 분석 섹션의 유효 너비 (570px)
+    main_section_width = (img_width / 2) - (1.5 * padding_x) 
 
     calculated_y_for_height = 60
     calculated_y_for_height += title_font.size + 30
@@ -76,11 +80,9 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     bar_section_height = (text_font_bold.size + 30) * 3 + 20 
     calculated_y_for_height += max(color_box_height, bar_section_height) + 40 
 
-    calculated_y_for_height += section_title_font.size + 40 
-
-    descriptions = comprehensive_result['descriptions']
+    # --- 2-2. 상세 분석 및 세계별 분석 섹션 높이 계산 ---
     
-    # --- 줄바꿈을 계산하고 높이를 반환하는 도우미 함수 ---
+    # 줄바꿈을 계산하고 높이를 반환하는 도우미 함수 (간격 조정 반영)
     def calculate_multiline_text_block_height(text, font, width_limit, draw_obj, title_font_obj, is_world_section=False):
         total_block_height = 0
         total_block_height += title_font_obj.size + 15 # 제목 높이
@@ -99,27 +101,28 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         lines.append(line_buffer)
         
         for _ in lines:
-            total_block_height += font.size + (10 if is_world_section else 15) # 세계별 분석 줄 간격 조정
+            total_block_height += font.size + (5 if is_world_section else 15) # 줄 간격 조정 (세계별 분석 5px)
             
-        total_block_height += (40 if is_world_section else 80) # 세계별 분석 문단 간격 조정
+        total_block_height += (30 if is_world_section else 60) # 문단 간격 조정 (세계별 분석 30px, 종합 60px)
         return total_block_height
 
-    # 종합 상세 분석 높이 계산 (is_world_section=False)
-    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['R'], text_font, img_width, temp_draw, text_font_bold, is_world_section=False)
-    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['G'], text_font, img_width, temp_draw, text_font_bold, is_world_section=False)
-    calculated_y_for_height += calculate_multiline_text_block_height(descriptions['B'], text_font, img_width, temp_draw, text_font_bold, is_world_section=False)
+    # 왼쪽 (종합 상세 분석) 높이 계산 (width_limit = main_section_width)
+    y_left = section_title_font.size + 40 # 상세 성격 분석 제목 높이
+    descriptions = comprehensive_result['descriptions']
+    y_left += calculate_multiline_text_block_height(descriptions['R'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=False)
+    y_left += calculate_multiline_text_block_height(descriptions['G'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=False)
+    y_left += calculate_multiline_text_block_height(descriptions['B'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=False)
     
-    # 세계별 요약 분석 섹션 제목 높이 추가
-    calculated_y_for_height += section_title_font.size + 40 
+    # 오른쪽 (세계별 요약 분석) 높이 계산 (width_limit = main_section_width)
+    y_right = section_title_font.size + 40 # 세계별 요약 분석 제목 높이
+    for code, data in world_results.items():
+        y_right += sub_section_title_font.size + 20 # 세계별 소제목 높이
+        y_right += calculate_multiline_text_block_height(data['description_R'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=True)
+        y_right += calculate_multiline_text_block_height(data['description_G'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=True)
+        y_right += calculate_multiline_text_block_height(data['description_B'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=True)
 
-    # 세계별 요약 분석 내용 높이 계산 (is_world_section=True)
-    for world_code in ['i', 'a', 's']:
-        calculated_y_for_height += sub_section_title_font.size + 20 # 세계별 소제목 높이
-        calculated_y_for_height += calculate_multiline_text_block_height(world_results[world_code]['description_R'], text_font, img_width, temp_draw, text_font_bold, is_world_section=True)
-        calculated_y_for_height += calculate_multiline_text_block_height(world_results[world_code]['description_G'], text_font, img_width, temp_draw, text_font_bold, is_world_section=True)
-        calculated_y_for_height += calculate_multiline_text_block_height(world_results[world_code]['description_B'], text_font, img_width, temp_draw, text_font_bold, is_world_section=True)
 
-    final_img_height = int(calculated_y_for_height) + 50
+    final_img_height = int(calculated_y_for_height) + max(y_left, y_right) + 50
 
     # --- 3. 실제 이미지 생성 및 그리기 ---
     img = Image.new("RGB", (img_width, final_img_height), color="#FFFFFF")
@@ -131,34 +134,34 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     draw.text((padding_x, y_cursor), "당신의 종합 분석 결과", font=title_font, fill="#333333")
     y_cursor += title_font.size + 30 
     
-    # 3-2. 섹션 제목
+    # 3-2. 섹션 제목 (좌우)
+    # 왼쪽 (종합 색상)
     draw.text((padding_x, y_cursor), "종합 성격 색상", font=section_title_font, fill="#333333")
-    draw.text((img_width / 2 + padding_x, y_cursor), "유형별 강도 시각화", font=section_title_font, fill="#333333") # X 위치 조정
+    # 오른쪽 (그래프) - 위치 조정: (img_width / 2 + padding_x)
+    draw.text((img_width / 2 + padding_x, y_cursor), "유형별 강도 시각화", font=section_title_font, fill="#333333") 
     y_cursor += section_title_font.size + 20
 
-    # --- 3-3. 왼쪽: 종합 성격 색상 ---
+    # --- 3-3. 왼쪽 상단: 종합 성격 색상 ---
     hex_color = comprehensive_result['hex']
     color_box_y_start = y_cursor
     color_box_y_end = color_box_y_start + 150
-    # 박스 너비 조정: img_width / 2 - 2*padding_x 
-    color_box_width = (img_width / 2) - (1.5 * padding_x)
-    draw.rectangle([padding_x, color_box_y_start, color_box_width, color_box_y_end], fill=hex_color, outline="#CCCCCC", width=1)
+    color_box_x_end = img_width / 2 - (1.5 * padding_x)
+    draw.rectangle([padding_x, color_box_y_start, color_box_x_end, color_box_y_end], fill=hex_color, outline="#CCCCCC", width=1)
     
-    draw.text((padding_x + (color_box_width - padding_x) / 2, color_box_y_end + 10), 
+    draw.text((padding_x + (color_box_x_end - padding_x) / 2, color_box_y_end + 10), 
               hex_color, font=hex_font, fill="#333333", anchor="mt")
     
     y_cursor_after_color_box = color_box_y_end + hex_font.size + 30
 
-    # --- 3-4. 오른쪽: 퍼센티지 바 섹션 (수치 짤림 수정) ---
+    # --- 3-4. 오른쪽 상단: 퍼센티지 바 섹션 ---
     percentages = comprehensive_result['percentages']
     
     bar_y_start = y_cursor + 20 
-    bar_x_start = img_width / 2 + padding_x # X 시작 위치 조정
+    bar_x_start = img_width / 2 + padding_x # X 시작 위치
     
-    # 수치 텍스트가 짤리지 않도록 bar_width를 전체 섹션 너비에서 여유 공간을 확보
     section_width = img_width - bar_x_start - padding_x 
-    text_buffer_width = 80  # 수치 텍스트 (XX.X%)를 위한 공간
-    bar_width = section_width - text_buffer_width # 막대 길이가 줄어듦
+    text_buffer_width = 80  # 수치 텍스트 공간
+    bar_width = section_width - text_buffer_width # 막대 길이
     
     colors = {'R': '#E63946', 'G': '#7FB069', 'B': '#457B9D'}
     labels = {'R': '진취형 (R)', 'G': '중재형 (G)', 'B': '신중형 (B)'}
@@ -169,14 +172,11 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         
         draw.text((bar_x_start, bar_y_start), labels[k], font=text_font_bold, fill="#333333")
         
-        # 퍼센트 수치 출력 위치: 막대 끝 위치 + 약간의 간격
         perc_text_x = bar_x_start + bar_width + 10
         draw.text((perc_text_x, bar_y_start), f"{perc}%", font=text_font_bold, fill="#333333")
         
-        # 막대 배경 (회색)
         draw.rectangle([bar_x_start, bar_y_start + 30, bar_x_start + bar_width, bar_y_start + 30 + bar_height], fill='#E0E0E0', outline="#CCCCCC", width=1)
         
-        # 실제 막대 (컬러)
         actual_bar_length = int(bar_width * (perc / 100))
         draw.rectangle([bar_x_start, bar_y_start + 30, bar_x_start + actual_bar_length, bar_y_start + 30 + bar_height], fill=colors[k])
         
@@ -184,12 +184,25 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         
     y_cursor = max(y_cursor_after_color_box, bar_y_start + 20) 
 
-    # 3-5. "상세 성격 분석" 제목
-    draw.text((padding_x, y_cursor), "상세 성격 분석", font=section_title_font, fill="#333333")
-    y_cursor += section_title_font.size + 40 
+    # --- 3-5. 상세 분석 & 세계별 분석 2단 배치 ---
 
-    # 3-6. 상세 설명 (descriptions) 그리기
-    def draw_description_block(title_text, description, color_code, y_start, width_limit, draw_obj, title_font_obj, text_font_obj, is_world_section=False):
+    # 왼쪽 섹션의 X 시작/끝 좌표
+    left_x_start = padding_x
+    left_section_width = color_box_x_end 
+
+    # 오른쪽 섹션의 X 시작/끝 좌표
+    right_x_start = img_width / 2 + padding_x # 오른쪽 시작 지점
+    right_section_width = img_width - right_x_start - padding_x # 오른쪽 유효 너비
+    
+    # y_cursor는 두 섹션의 시작 Y 좌표
+    start_y_for_two_cols = y_cursor
+
+    # 3-6. 왼쪽: 상세 성격 분석
+    current_y_left = start_y_for_two_cols
+    draw.text((left_x_start, current_y_left), "상세 성격 분석", font=section_title_font, fill="#333333")
+    current_y_left += section_title_font.size + 40 
+
+    def draw_description_block(title_text, description, color_code, y_start, x_start, width_limit, draw_obj, title_font_obj, text_font_obj, is_world_section=False):
         current_y_local = y_start 
         
         color_fill_map = {'R': '#E63946', 'G': '#7FB069', 'B': '#457B9D', 
@@ -197,16 +210,16 @@ def generate_result_image(comprehensive_result, world_results, font_path):
 
         title_color = color_fill_map.get(color_code, '#333333')
         
-        draw_obj.text((padding_x, current_y_local), title_text, font=title_font_obj, fill=title_color) 
+        draw_obj.text((x_start, current_y_local), title_text, font=title_font_obj, fill=title_color) 
         current_y_local += title_font_obj.size + 15
 
         lines = []
         words = description.split(' ')
         line_buffer = ""
-        available_width = width_limit - (padding_x * 2) 
+        available_width = width_limit - (x_start - (x_start if x_start == padding_x else x_start - padding_x)) # 패딩 고려
 
         for word in words:
-            if safe_text_width(draw_obj, line_buffer + word, font=text_font_obj) < available_width: 
+            if safe_text_width(draw_obj, line_buffer + word, font=text_font_obj) < width_limit - (x_start + padding_x): 
                 line_buffer += word + " "
             else:
                 lines.append(line_buffer)
@@ -214,31 +227,31 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         lines.append(line_buffer)
         
         for line in lines:
-            draw_obj.text((padding_x, current_y_local), line, font=text_font_obj, fill="#555555")
-            current_y_local += text_font_obj.size + (10 if is_world_section else 15) # 줄 간격 조정
+            draw_obj.text((x_start, current_y_local), line, font=text_font_obj, fill="#555555")
+            current_y_local += text_font_obj.size + (5 if is_world_section else 15) # 줄 간격 조정
             
-        current_y_local += (40 if is_world_section else 80) # 문단 간격 조정
+        current_y_local += (30 if is_world_section else 60) # 문단 간격 조정
         return current_y_local
 
-    # 종합 상세 분석
-    y_cursor = draw_description_block("진취형(R) 성향 분석", descriptions['R'], 'R', y_cursor, img_width, draw, text_font_bold, text_font)
-    y_cursor = draw_description_block("중재형(G) 성향 분석", descriptions['G'], 'G', y_cursor, img_width, draw, text_font_bold, text_font)
-    y_cursor = draw_description_block("신중형(B) 성향 분석", descriptions['B'], 'B', y_cursor, img_width, draw, text_font_bold, text_font)
+    # 종합 상세 분석 (왼쪽 열)
+    current_y_left = draw_description_block("진취형(R) 성향 분석", descriptions['R'], 'R', current_y_left, left_x_start, left_section_width, draw, text_font_bold, text_font, is_world_section=False)
+    current_y_left = draw_description_block("중재형(G) 성향 분석", descriptions['G'], 'G', current_y_left, left_x_start, left_section_width, draw, text_font_bold, text_font, is_world_section=False)
+    current_y_left = draw_description_block("신중형(B) 성향 분석", descriptions['B'], 'B', current_y_left, left_x_start, left_section_width, draw, text_font_bold, text_font, is_world_section=False)
     
-    # 3-7. "세계별 요약 분석" 제목
-    draw.text((padding_x, y_cursor), "세계별 요약 분석", font=section_title_font, fill="#333333") 
-    y_cursor += section_title_font.size + 40 
+    # 3-7. 오른쪽: 세계별 요약 분석
+    current_y_right = start_y_for_two_cols
+    draw.text((right_x_start, current_y_right), "세계별 요약 분석", font=section_title_font, fill="#333333") 
+    current_y_right += section_title_font.size + 40 
 
-    # 3-8. 세계별 요약 분석 내용
     worlds_map = {'i': '내면 세계', 'a': '주변 세계', 's': '사회'}
     for code, data in world_results.items():
-        draw.text((padding_x, y_cursor), f"'{worlds_map[code]}'에서는...", font=sub_section_title_font, fill="#333333")
-        y_cursor += sub_section_title_font.size + 20
+        draw.text((right_x_start, current_y_right), f"'{worlds_map[code]}'에서는...", font=sub_section_title_font, fill="#333333")
+        current_y_right += sub_section_title_font.size + 20
 
-        # 세계별 R, G, B 설명 (is_world_section=True로 설정, 이모지 제거)
-        y_cursor = draw_description_block("추진력/결정/리더십", data['description_R'], 'default_r', y_cursor, img_width, draw, text_font_bold, text_font, is_world_section=True)
-        y_cursor = draw_description_block("인간관계/협력/의사소통", data['description_G'], 'default_g', y_cursor, img_width, draw, text_font_bold, text_font, is_world_section=True)
-        y_cursor = draw_description_block("사고방식/계획/판단", data['description_B'], 'default_b', y_cursor, img_width, draw, text_font_bold, text_font, is_world_section=True)
+        # 세계별 R, G, B 설명 (is_world_section=True)
+        current_y_right = draw_description_block("추진력/결정/리더십", data['description_R'], 'default_r', current_y_right, right_x_start, right_section_width, draw, text_font_bold, text_font, is_world_section=True)
+        current_y_right = draw_description_block("인간관계/협력/의사소통", data['description_G'], 'default_g', current_y_right, right_x_start, right_section_width, draw, text_font_bold, text_font, is_world_section=True)
+        current_y_right = draw_description_block("사고방식/계획/판단", data['description_B'], 'default_b', current_y_right, right_x_start, right_section_width, draw, text_font_bold, text_font, is_world_section=True)
 
     # --- 4. 최종 이미지 저장 및 반환 ---
     buffer = io.BytesIO()
@@ -470,4 +483,3 @@ if question_lists and description_blocks:
             st.rerun()
 else:
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
-
