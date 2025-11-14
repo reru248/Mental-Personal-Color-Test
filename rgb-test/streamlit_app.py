@@ -50,7 +50,7 @@ def safe_text_width(draw_obj, text, font):
 # --- 종합 결과 이미지 생성 함수 (스타일 및 겹침 문제 해결 반영) ---
 def generate_result_image(comprehensive_result, world_results, font_path):
     # --- 1. 초기 설정 및 폰트 로드 ---
-    img_width = 1200  # 이미지 너비 증가 (1200px)
+    img_width = 1200  # 이미지 너비 유지
     padding_x = 20    # 좌우 여백 유지
     
     title_font, section_title_font, sub_section_title_font, text_font_bold, text_font, hex_font = [ImageFont.load_default()] * 6
@@ -69,8 +69,7 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     temp_draw = ImageDraw.Draw(temp_img)
     
     # 2-1. 공통 너비 설정
-    # 좌우 상세/세계별 분석 섹션의 유효 너비 (570px)
-    main_section_width = (img_width / 2) - (1.5 * padding_x) 
+    main_section_width = (img_width / 2) - (1.5 * padding_x) # 570px
 
     calculated_y_for_height = 60
     calculated_y_for_height += title_font.size + 30
@@ -88,17 +87,30 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         total_block_height += title_font_obj.size + 15 # 제목 높이
         
         lines = []
-        words = text.split(' ')
-        line_buffer = ""
-        available_width = width_limit - (padding_x * 2)
-
-        for word in words:
-            if safe_text_width(draw_obj, line_buffer + word, font=font) < available_width:
-                line_buffer += word + " "
-            else:
-                lines.append(line_buffer)
-                line_buffer = word + " "
-        lines.append(line_buffer)
+        
+        # 세계별 분석 (is_world_section=True)는 단어 단위 대신 문자열 길이 기반으로 분할 (띄어쓰기 문제 해결)
+        if is_world_section:
+            # 폰트와 크기를 고려하여 한 줄에 대략 들어갈 수 있는 문자 수 (경험적 값)
+            chars_per_line = int(width_limit / (font.size * 0.55)) - 3 # 16px 기준 폰트 크기 비율로 계산
+            for i in range(0, len(text), chars_per_line):
+                lines.append(text[i:i + chars_per_line])
+        else:
+            # 종합 분석 (is_world_section=False)는 단어 단위로 분할
+            words = text.split(' ')
+            line_buffer = ""
+            available_width = width_limit - (padding_x * 2) # 좌측 패딩만 적용되므로 수정 필요
+            
+            # 정확한 너비 계산을 위해 시작 x를 0으로 가정하고 width_limit만 사용
+            temp_x_start = 0 
+            
+            for word in words:
+                # 다음 단어까지 포함한 너비가 width_limit을 초과하는지 확인
+                if safe_text_width(draw_obj, line_buffer + word, font=font) < width_limit:
+                    line_buffer += word + " "
+                else:
+                    lines.append(line_buffer)
+                    line_buffer = word + " "
+            lines.append(line_buffer)
         
         for _ in lines:
             total_block_height += font.size + (5 if is_world_section else 15) # 줄 간격 조정 (세계별 분석 5px)
@@ -188,11 +200,11 @@ def generate_result_image(comprehensive_result, world_results, font_path):
 
     # 왼쪽 섹션의 X 시작/끝 좌표
     left_x_start = padding_x
-    left_section_width = color_box_x_end 
+    left_section_width = color_box_x_end - padding_x # 유효 너비 550px
 
     # 오른쪽 섹션의 X 시작/끝 좌표
     right_x_start = img_width / 2 + padding_x # 오른쪽 시작 지점
-    right_section_width = img_width - right_x_start - padding_x # 오른쪽 유효 너비
+    right_section_width = img_width - right_x_start - padding_x # 오른쪽 유효 너비 560px
     
     # y_cursor는 두 섹션의 시작 Y 좌표
     start_y_for_two_cols = y_cursor
@@ -202,6 +214,7 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     draw.text((left_x_start, current_y_left), "상세 성격 분석", font=section_title_font, fill="#333333")
     current_y_left += section_title_font.size + 40 
 
+    # 텍스트 블록 그리는 함수 (줄바꿈 로직 수정 반영)
     def draw_description_block(title_text, description, color_code, y_start, x_start, width_limit, draw_obj, title_font_obj, text_font_obj, is_world_section=False):
         current_y_local = y_start 
         
@@ -214,18 +227,29 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         current_y_local += title_font_obj.size + 15
 
         lines = []
-        words = description.split(' ')
-        line_buffer = ""
-        available_width = width_limit - (x_start - (x_start if x_start == padding_x else x_start - padding_x)) # 패딩 고려
-
-        for word in words:
-            if safe_text_width(draw_obj, line_buffer + word, font=text_font_obj) < width_limit - (x_start + padding_x): 
-                line_buffer += word + " "
-            else:
-                lines.append(line_buffer)
-                line_buffer = word + " "
-        lines.append(line_buffer)
         
+        # 세계별 분석 (is_world_section=True): 문자열 길이 기반 강제 줄바꿈 (띄어쓰기 문제 해결)
+        if is_world_section:
+            chars_per_line = int(width_limit / (text_font_obj.size * 0.55)) - 3
+            for i in range(0, len(description), chars_per_line):
+                lines.append(description[i:i + chars_per_line])
+        
+        # 종합 분석 (is_world_section=False): 단어 단위 줄바꿈
+        else:
+            words = description.split(' ')
+            line_buffer = ""
+            available_width = width_limit - 10 # 겹침 방지를 위해 너비에 여유를 줌
+
+            for word in words:
+                # 다음 단어까지 포함한 너비가 유효 너비(width_limit)를 초과하는지 확인
+                if safe_text_width(draw_obj, line_buffer + word, font=text_font_obj) < width_limit:
+                    line_buffer += word + " "
+                else:
+                    lines.append(line_buffer)
+                    line_buffer = word + " "
+            lines.append(line_buffer.strip())
+        
+        # 텍스트 그리기
         for line in lines:
             draw_obj.text((x_start, current_y_local), line, font=text_font_obj, fill="#555555")
             current_y_local += text_font_obj.size + (5 if is_world_section else 15) # 줄 간격 조정
