@@ -84,8 +84,9 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     
     # 줄바꿈을 계산하고 높이를 반환하는 도우미 함수 (간격 및 너비 계산 보강)
     def calculate_multiline_text_block_height(text, font, width_limit, draw_obj, title_font_obj, is_world_section=False):
+        # 제목 아래 간격 5px로 통일
         total_block_height = 0
-        total_block_height += title_font_obj.size + 15 # 제목 높이
+        total_block_height += title_font_obj.size + 5 
         
         lines = []
         
@@ -122,14 +123,12 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     # 왼쪽 (종합 상세 분석) 높이 계산
     y_left = section_title_font.size + 40 
     descriptions = comprehensive_result['descriptions']
-    # 종합 분석 높이 계산 시, paragraph_spacing이 30px로 적용됨
     y_left += calculate_multiline_text_block_height(descriptions['R'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=False)
     y_left += calculate_multiline_text_block_height(descriptions['G'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=False)
     y_left += calculate_multiline_text_block_height(descriptions['B'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=False)
     
     # 오른쪽 (세계별 요약 분석) 높이 계산
     y_right = section_title_font.size + 40 
-    # 세계별 분석 높이 계산 시, paragraph_spacing이 60px로 적용됨
     for code, data in world_results.items():
         y_right += sub_section_title_font.size + 20 
         y_right += calculate_multiline_text_block_height(data['description_R'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=True)
@@ -225,7 +224,8 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         title_color = color_fill_map.get(color_code, '#333333')
         
         draw_obj.text((x_start, current_y_local), title_text, font=title_font_obj, fill=title_color) 
-        current_y_local += title_font_obj.size + 15
+        current_y_local += title_font_obj.size + 5 # 여기서 제목 아래 간격 5px 적용
+        # current_y_local += title_font_obj.size + 15 # (이전 코드)
 
         lines = []
         
