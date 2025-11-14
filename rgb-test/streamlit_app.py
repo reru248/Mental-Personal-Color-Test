@@ -110,11 +110,12 @@ def generate_result_image(comprehensive_result, world_results, font_path):
             lines.append(line_buffer.strip())
         
         for _ in lines:
-            # 종합 분석 겹침 방지를 위해 줄 간격(15px -> 20px) 추가 확보
-            line_spacing = 5 if is_world_section else 20 
+            # 줄 간격 추가 확보: 종합 25px, 세계별 10px
+            line_spacing = 10 if is_world_section else 25 
             total_block_height += font.size + line_spacing 
             
-        total_block_height += (30 if is_world_section else 60) # 문단 간격 조정
+        # 문단 간격 통일: 60px
+        total_block_height += 60 
         return total_block_height
 
     # 왼쪽 (종합 상세 분석) 높이 계산
@@ -195,14 +196,14 @@ def generate_result_image(comprehensive_result, world_results, font_path):
 
     # --- 3-5. 상세 분석 & 세계별 분석 2단 배치 ---
     
-    # NameError 해결을 위해 변수 정의 위치 조정
+    # 변수 정의
     left_x_start = padding_x
-    left_section_x_end = img_width / 2 - (1.5 * padding_x) # color_box_x_end와 동일
-    left_section_width = left_section_x_end - left_x_start # 550px
+    left_section_x_end = img_width / 2 - (1.5 * padding_x)
+    left_section_width = left_section_x_end - left_x_start 
 
     right_x_start = img_width / 2 + padding_x
     right_section_x_end = img_width - padding_x
-    right_section_width = right_section_x_end - right_x_start # 560px
+    right_section_width = right_section_x_end - right_x_start 
     
     start_y_for_two_cols = y_cursor
 
@@ -249,11 +250,12 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         
         # 텍스트 그리기
         for line in lines:
+            # 줄 간격 추가 확보: 종합 25px, 세계별 10px
             draw_obj.text((x_start, current_y_local), line, font=text_font_obj, fill="#555555")
-            line_spacing = 5 if is_world_section else 20 # 간격 추가 확보 (겹침 방지)
+            line_spacing = 10 if is_world_section else 25 
             current_y_local += text_font_obj.size + line_spacing 
             
-        current_y_local += (30 if is_world_section else 60) # 문단 간격 조정
+        current_y_local += 60 # 문단 간격 통일
         return current_y_local
 
     # 종합 상세 분석 (왼쪽 열)
