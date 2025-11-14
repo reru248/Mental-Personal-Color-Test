@@ -443,7 +443,7 @@ if question_lists and description_blocks:
         total_score_G = (scores['GPi']+scores['GPa']+scores['GPs']) - (scores['GSi']+scores['GSa']+scores['GSs'])
         total_score_B = (scores['BPi']+scores['BPa']+scores['BPs']) - (scores['BSi']+scores['BSa']+scores['BSs'])
         
-        comp_final = {'R': 128 + total_score_R*2, 'G': 128 + total_score_G*2, 'B': 128 + total_score_B*2}
+        comp_final = {'R': 128 + total_score_R, 'G': 128 + total_score_G, 'B': 128 + total_score_B}
         
         comp_abs = {k: min(max(v, 0), 255) for k, v in comp_final.items()}
         
@@ -521,3 +521,4 @@ if question_lists and description_blocks:
             st.rerun()
 else:
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
+
