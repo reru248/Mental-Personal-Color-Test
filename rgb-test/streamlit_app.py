@@ -91,7 +91,6 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         
         if is_world_section:
             # 세계별 분석: 문자열 길이 기반 강제 줄바꿈 (잘림 방지 보강)
-            # 줄당 문자 수를 더욱 보수적으로 줄임 (chars_per_line - 5)
             chars_per_line = int(width_limit / (font.size * 0.55)) - 12
             if chars_per_line < 10: chars_per_line = 10 
             
@@ -195,8 +194,10 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     y_cursor = max(y_cursor_after_color_box, bar_y_start + 20) 
 
     # --- 3-5. 상세 분석 & 세계별 분석 2단 배치 ---
-
+    
+    # NameError 해결을 위해 변수 정의 위치 조정
     left_x_start = padding_x
+    left_section_x_end = img_width / 2 - (1.5 * padding_x) # color_box_x_end와 동일
     left_section_width = left_section_x_end - left_x_start # 550px
 
     right_x_start = img_width / 2 + padding_x
@@ -249,7 +250,7 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         # 텍스트 그리기
         for line in lines:
             draw_obj.text((x_start, current_y_local), line, font=text_font_obj, fill="#555555")
-            line_spacing = 5 if is_world_section else 20 # 간격 추가 확보
+            line_spacing = 5 if is_world_section else 20 # 간격 추가 확보 (겹침 방지)
             current_y_local += text_font_obj.size + line_spacing 
             
         current_y_local += (30 if is_world_section else 60) # 문단 간격 조정
