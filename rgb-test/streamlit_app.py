@@ -84,9 +84,9 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     
     # 줄바꿈을 계산하고 높이를 반환하는 도우미 함수 (간격 및 너비 계산 보강)
     def calculate_multiline_text_block_height(text, font, width_limit, draw_obj, title_font_obj, is_world_section=False):
-        # 제목 아래 간격 5px로 통일
+        # 제목 아래 간격 0px로 설정 (간격 최소화)
         total_block_height = 0
-        total_block_height += title_font_obj.size + 5 
+        total_block_height += title_font_obj.size + 0 
         
         lines = []
         
@@ -224,8 +224,8 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         title_color = color_fill_map.get(color_code, '#333333')
         
         draw_obj.text((x_start, current_y_local), title_text, font=title_font_obj, fill=title_color) 
-        current_y_local += title_font_obj.size + 5 # 여기서 제목 아래 간격 5px 적용
-        # current_y_local += title_font_obj.size + 15 # (이전 코드)
+        # 제목 아래 간격을 0px으로 설정하여 최소화
+        current_y_local += title_font_obj.size + 0 
 
         lines = []
         
