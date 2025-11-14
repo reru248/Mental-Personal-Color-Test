@@ -110,14 +110,18 @@ def generate_result_image(comprehensive_result, world_results, font_path):
                     line_buffer = word + " "
             lines.append(line_buffer.strip())
         
+        # 종합 분석 섹션일 경우에만 문단 앞 추가 간격 (요청 반영)
+        if not is_world_section:
+            total_block_height += 20 
+            
         for _ in lines:
             # 줄 간격 추가 확보: 종합 25px, 세계별 10px
             line_spacing = 10 if is_world_section else 25 
             total_block_height += font.size + line_spacing 
             
-        # 문단 간격 조정: 종합 50px (증가), 세계별 60px
-        paragraph_spacing = 60 if is_world_section else 50 
-        total_block_height += paragraph_spacing 
+        # 문단 간격 조정: 종합 50px, 세계별 60px
+        paragraph_spacing_after_block = 60 if is_world_section else 50 
+        total_block_height += paragraph_spacing_after_block 
         return total_block_height
 
     # 왼쪽 (종합 상세 분석) 높이 계산
@@ -251,6 +255,10 @@ def generate_result_image(comprehensive_result, world_results, font_path):
                     line_buffer = word + " "
             lines.append(line_buffer.strip())
         
+        # 종합 분석 섹션일 경우에만 문단 앞 추가 간격 (요청 반영)
+        if not is_world_section:
+            current_y_local += 20 
+            
         # 텍스트 그리기
         for line in lines:
             # 줄 간격 추가 확보: 종합 25px, 세계별 10px
@@ -258,9 +266,9 @@ def generate_result_image(comprehensive_result, world_results, font_path):
             line_spacing = 10 if is_world_section else 25 
             current_y_local += text_font_obj.size + line_spacing 
             
-        # 문단 간격 조정: 종합 50px (증가), 세계별 60px
-        paragraph_spacing = 60 if is_world_section else 50 
-        current_y_local += paragraph_spacing 
+        # 문단 간격 조정: 종합 50px, 세계별 60px
+        paragraph_spacing_after_block = 60 if is_world_section else 50 
+        current_y_local += paragraph_spacing_after_block 
         return current_y_local
 
     # 종합 상세 분석 (왼쪽 열)
