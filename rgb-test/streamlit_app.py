@@ -115,8 +115,8 @@ def generate_result_image(comprehensive_result, world_results, font_path):
             line_spacing = 10 if is_world_section else 25 
             total_block_height += font.size + line_spacing 
             
-        # 문단 간격 조정: 종합 30px, 세계별 60px
-        paragraph_spacing = 60 if is_world_section else 30 
+        # 문단 간격 조정: 종합 50px (증가), 세계별 60px
+        paragraph_spacing = 60 if is_world_section else 50 
         total_block_height += paragraph_spacing 
         return total_block_height
 
@@ -258,8 +258,8 @@ def generate_result_image(comprehensive_result, world_results, font_path):
             line_spacing = 10 if is_world_section else 25 
             current_y_local += text_font_obj.size + line_spacing 
             
-        # 문단 간격 조정: 종합 30px, 세계별 60px
-        paragraph_spacing = 60 if is_world_section else 30 
+        # 문단 간격 조정: 종합 50px (증가), 세계별 60px
+        paragraph_spacing = 60 if is_world_section else 50 
         current_y_local += paragraph_spacing 
         return current_y_local
 
