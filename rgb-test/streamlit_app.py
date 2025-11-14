@@ -33,7 +33,6 @@ if os.path.exists(font_path):
     plt.rc('font', family=font_name)
     plt.rcParams['axes.unicode_minus'] = False
 else:
-    # 폰트가 없는 경우를 대비하여 경고 메시지 대신 기본 폰트 설정 유지
     pass 
     
 # --- 텍스트 길이 측정 도우미 함수 (안정성 강화) ---
@@ -45,15 +44,14 @@ def safe_text_width(draw_obj, text, font):
         bbox = draw_obj.textbbox((0, 0), text, font=font)
         return bbox[2] - bbox[0]
     except Exception:
-        # 폰트 로드 실패 등 비상 상황 시 대략적인 너비 추정
         return len(text) * font.size 
 
 
 # --- 종합 결과 이미지 생성 함수 (스타일 및 겹침 문제 해결 반영) ---
 def generate_result_image(comprehensive_result, world_results, font_path):
     # --- 1. 초기 설정 및 폰트 로드 ---
-    img_width = 1000  # <-- 이미지 너비 증가 (900 -> 1000)
-    padding_x = 20    # <-- 좌우 여백 추가 감소 (30 -> 20)
+    img_width = 1000  # 이미지 너비 유지
+    padding_x = 20    # 좌우 여백 유지
     
     title_font, section_title_font, sub_section_title_font, text_font_bold, text_font, hex_font = [ImageFont.load_default()] * 6
     try:
@@ -101,9 +99,9 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         lines.append(line_buffer)
         
         for _ in lines:
-            total_block_height += font.size + (10 if is_world_section else 15) # <-- 세계별 분석 줄 간격 감소 (15 -> 10)
+            total_block_height += font.size + (10 if is_world_section else 15) # 세계별 분석 줄 간격 조정
             
-        total_block_height += (40 if is_world_section else 80) # <-- 세계별 분석 문단 간격 감소 (80 -> 40)
+        total_block_height += (40 if is_world_section else 80) # 세계별 분석 문단 간격 조정
         return total_block_height
 
     # 종합 상세 분석 높이 계산 (is_world_section=False)
@@ -135,26 +133,32 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     
     # 3-2. 섹션 제목
     draw.text((padding_x, y_cursor), "종합 성격 색상", font=section_title_font, fill="#333333")
-    draw.text((img_width / 2 + 20, y_cursor), "유형별 강도 시각화", font=section_title_font, fill="#333333")
+    draw.text((img_width / 2 + padding_x, y_cursor), "유형별 강도 시각화", font=section_title_font, fill="#333333") # X 위치 조정
     y_cursor += section_title_font.size + 20
 
     # --- 3-3. 왼쪽: 종합 성격 색상 ---
     hex_color = comprehensive_result['hex']
     color_box_y_start = y_cursor
     color_box_y_end = color_box_y_start + 150
-    draw.rectangle([padding_x, color_box_y_start, img_width / 2 - 20, color_box_y_end], fill=hex_color, outline="#CCCCCC", width=1)
+    # 박스 너비 조정: img_width / 2 - 2*padding_x 
+    color_box_width = (img_width / 2) - (1.5 * padding_x)
+    draw.rectangle([padding_x, color_box_y_start, color_box_width, color_box_y_end], fill=hex_color, outline="#CCCCCC", width=1)
     
-    draw.text((padding_x + (img_width / 2 - 20 - padding_x) / 2, color_box_y_end + 10), 
+    draw.text((padding_x + (color_box_width - padding_x) / 2, color_box_y_end + 10), 
               hex_color, font=hex_font, fill="#333333", anchor="mt")
     
     y_cursor_after_color_box = color_box_y_end + hex_font.size + 30
 
-    # --- 3-4. 오른쪽: 퍼센티지 바 섹션 ---
+    # --- 3-4. 오른쪽: 퍼센티지 바 섹션 (수치 짤림 수정) ---
     percentages = comprehensive_result['percentages']
     
     bar_y_start = y_cursor + 20 
-    bar_x_start = img_width / 2 + 20
-    bar_width = img_width - bar_x_start - padding_x
+    bar_x_start = img_width / 2 + padding_x # X 시작 위치 조정
+    
+    # 수치 텍스트가 짤리지 않도록 bar_width를 전체 섹션 너비에서 여유 공간을 확보
+    section_width = img_width - bar_x_start - padding_x 
+    text_buffer_width = 80  # 수치 텍스트 (XX.X%)를 위한 공간
+    bar_width = section_width - text_buffer_width # 막대 길이가 줄어듦
     
     colors = {'R': '#E63946', 'G': '#7FB069', 'B': '#457B9D'}
     labels = {'R': '진취형 (R)', 'G': '중재형 (G)', 'B': '신중형 (B)'}
@@ -164,10 +168,15 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         perc = percentages[k]
         
         draw.text((bar_x_start, bar_y_start), labels[k], font=text_font_bold, fill="#333333")
-        draw.text((bar_x_start + bar_width + 10, bar_y_start), f"{perc}%", font=text_font_bold, fill="#333333")
         
+        # 퍼센트 수치 출력 위치: 막대 끝 위치 + 약간의 간격
+        perc_text_x = bar_x_start + bar_width + 10
+        draw.text((perc_text_x, bar_y_start), f"{perc}%", font=text_font_bold, fill="#333333")
+        
+        # 막대 배경 (회색)
         draw.rectangle([bar_x_start, bar_y_start + 30, bar_x_start + bar_width, bar_y_start + 30 + bar_height], fill='#E0E0E0', outline="#CCCCCC", width=1)
         
+        # 실제 막대 (컬러)
         actual_bar_length = int(bar_width * (perc / 100))
         draw.rectangle([bar_x_start, bar_y_start + 30, bar_x_start + actual_bar_length, bar_y_start + 30 + bar_height], fill=colors[k])
         
@@ -226,7 +235,7 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         draw.text((padding_x, y_cursor), f"'{worlds_map[code]}'에서는...", font=sub_section_title_font, fill="#333333")
         y_cursor += sub_section_title_font.size + 20
 
-        # 세계별 R, G, B 설명 (is_world_section=True로 설정)
+        # 세계별 R, G, B 설명 (is_world_section=True로 설정, 이모지 제거)
         y_cursor = draw_description_block("추진력/결정/리더십", data['description_R'], 'default_r', y_cursor, img_width, draw, text_font_bold, text_font, is_world_section=True)
         y_cursor = draw_description_block("인간관계/협력/의사소통", data['description_G'], 'default_g', y_cursor, img_width, draw, text_font_bold, text_font, is_world_section=True)
         y_cursor = draw_description_block("사고방식/계획/판단", data['description_B'], 'default_b', y_cursor, img_width, draw, text_font_bold, text_font, is_world_section=True)
@@ -461,4 +470,3 @@ if question_lists and description_blocks:
             st.rerun()
 else:
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
-
