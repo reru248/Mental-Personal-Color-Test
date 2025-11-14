@@ -16,7 +16,7 @@ st.markdown("""
 .intro-box { text-align: center; padding: 2rem; }
 .intro-box h1 { font-size: 2.5rem; }
 .intro-box h2 { font-size: 1.5rem; color: #555; margin-bottom: 2rem; }
-div[data-testid="stButton"] > button { width: 120px; height: 55px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; border: 2px solid #e0e0e0; }
+div[data-testid="stButton"] > button { width: 140px; height: 55px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; border: 2px solid #e0e0e0; }
 div[data-testid="stButton"] > button:hover { border-color: #457B9D; color: #457B9D; }
 div[data-testid="stDownloadButton"] > button { width: 250px; height: 55px; font-size: 1.2rem; font-weight: bold; }
 </style>
@@ -470,3 +470,4 @@ if question_lists and description_blocks:
             st.rerun()
 else:
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
+
