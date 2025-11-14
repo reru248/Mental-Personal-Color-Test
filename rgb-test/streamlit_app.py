@@ -114,19 +114,22 @@ def generate_result_image(comprehensive_result, world_results, font_path):
             line_spacing = 10 if is_world_section else 25 
             total_block_height += font.size + line_spacing 
             
-        # 문단 간격 통일: 60px
-        total_block_height += 60 
+        # 문단 간격 조정: 종합 30px, 세계별 60px
+        paragraph_spacing = 60 if is_world_section else 30 
+        total_block_height += paragraph_spacing 
         return total_block_height
 
     # 왼쪽 (종합 상세 분석) 높이 계산
     y_left = section_title_font.size + 40 
     descriptions = comprehensive_result['descriptions']
+    # 종합 분석 높이 계산 시, paragraph_spacing이 30px로 적용됨
     y_left += calculate_multiline_text_block_height(descriptions['R'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=False)
     y_left += calculate_multiline_text_block_height(descriptions['G'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=False)
     y_left += calculate_multiline_text_block_height(descriptions['B'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=False)
     
     # 오른쪽 (세계별 요약 분석) 높이 계산
     y_right = section_title_font.size + 40 
+    # 세계별 분석 높이 계산 시, paragraph_spacing이 60px로 적용됨
     for code, data in world_results.items():
         y_right += sub_section_title_font.size + 20 
         y_right += calculate_multiline_text_block_height(data['description_R'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=True)
@@ -255,7 +258,9 @@ def generate_result_image(comprehensive_result, world_results, font_path):
             line_spacing = 10 if is_world_section else 25 
             current_y_local += text_font_obj.size + line_spacing 
             
-        current_y_local += 60 # 문단 간격 통일
+        # 문단 간격 조정: 종합 30px, 세계별 60px
+        paragraph_spacing = 60 if is_world_section else 30 
+        current_y_local += paragraph_spacing 
         return current_y_local
 
     # 종합 상세 분석 (왼쪽 열)
