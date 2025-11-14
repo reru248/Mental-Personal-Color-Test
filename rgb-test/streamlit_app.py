@@ -25,7 +25,8 @@ div[data-testid="stDownloadButton"] > button { width: 250px; height: 55px; font-
 
 # --- 폰트 경로 설정 ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
-font_path = os.path.join(current_dir, 'NanumGothic.ttf')
+# 폰트 파일명은 'NanumGothic.ttf'를 가정합니다. 실제 환경에 맞게 조정해 주세요.
+font_path = os.path.join(current_dir, 'NanumGothic.ttf') 
 
 if os.path.exists(font_path):
     fm.fontManager.addfont(font_path)
@@ -33,6 +34,7 @@ if os.path.exists(font_path):
     plt.rc('font', family=font_name)
     plt.rcParams['axes.unicode_minus'] = False
 else:
+    # 폰트가 없을 경우 기본 폰트 사용 (Streamlit 환경에서는 기본 폰트로 대체될 수 있음)
     pass 
     
 # --- 텍스트 길이 측정 도우미 함수 (안정성 강화) ---
@@ -41,13 +43,15 @@ def safe_text_width(draw_obj, text, font):
     if not text:
         return 0
     try:
+        # PIL.ImageDraw.Draw.textbbox()를 사용하여 텍스트 너비 계산
         bbox = draw_obj.textbbox((0, 0), text, font=font)
         return bbox[2] - bbox[0]
     except Exception:
+        # 오류 발생 시 폰트 크기를 기반으로 보수적으로 추정
         return len(text) * font.size 
 
 
-# --- 종합 결과 이미지 생성 함수 (스타일 및 겹침 문제 해결 반영) ---
+# --- 종합 결과 이미지 생성 함수 (겹침 및 잘림 문제 해결 반영) ---
 def generate_result_image(comprehensive_result, world_results, font_path):
     # --- 1. 초기 설정 및 폰트 로드 ---
     img_width = 1200  # 이미지 너비 유지
@@ -69,8 +73,13 @@ def generate_result_image(comprehensive_result, world_results, font_path):
     temp_draw = ImageDraw.Draw(temp_img)
     
     # 2-1. 공통 너비 설정
-    main_section_width = (img_width / 2) - (1.5 * padding_x) # 570px
-
+    # 섹션 전체 너비: (img_width / 2) - (1.5 * padding_x) = 600 - 30 = 570px
+    main_section_width = (img_width / 2) - (1.5 * padding_x) 
+    
+    # 텍스트가 실제로 그려질 유효 너비 (좌우 패딩 20px씩 제외)
+    # left_effective_width: 570 - 20 = 550px
+    # right_effective_width: 570 - 20 = 550px (실제 우측에는 패딩이 없으므로 570px에 가까우나, 안전하게 550으로 계산)
+    
     calculated_y_for_height = 60
     calculated_y_for_height += title_font.size + 30
     calculated_y_for_height += section_title_font.size + 20 
@@ -81,57 +90,58 @@ def generate_result_image(comprehensive_result, world_results, font_path):
 
     # --- 2-2. 상세 분석 및 세계별 분석 섹션 높이 계산 ---
     
-    # 줄바꿈을 계산하고 높이를 반환하는 도우미 함수 (간격 조정 반영)
+    # 줄바꿈을 계산하고 높이를 반환하는 도우미 함수 (간격 및 너비 계산 보강)
     def calculate_multiline_text_block_height(text, font, width_limit, draw_obj, title_font_obj, is_world_section=False):
         total_block_height = 0
         total_block_height += title_font_obj.size + 15 # 제목 높이
         
         lines = []
         
-        # 세계별 분석 (is_world_section=True)는 단어 단위 대신 문자열 길이 기반으로 분할 (띄어쓰기 문제 해결)
+        # 세계별 분석 (is_world_section=True): 문자열 길이 기반 강제 줄바꿈 (잘림 방지를 위해 보수적 계산)
         if is_world_section:
-            # 폰트와 크기를 고려하여 한 줄에 대략 들어갈 수 있는 문자 수 (경험적 값)
-            chars_per_line = int(width_limit / (font.size * 0.55)) - 3 # 16px 기준 폰트 크기 비율로 계산
+            # 폰트와 크기를 고려하여 한 줄에 들어갈 수 있는 문자 수 (16px 기준 약 30~35자. 안전하게 30자로 설정)
+            chars_per_line = int(width_limit / (font.size * 0.55)) - 7 # 16px 기준 폰트 크기 비율로 계산, 더 보수적 조정
+            if chars_per_line < 10: chars_per_line = 10 # 최소 10자 보장
+            
             for i in range(0, len(text), chars_per_line):
                 lines.append(text[i:i + chars_per_line])
         else:
-            # 종합 분석 (is_world_section=False)는 단어 단위로 분할
+            # 종합 분석 (is_world_section=False): 단어 단위로 분할 (겹침 방지 보강)
             words = text.split(' ')
             line_buffer = ""
-            available_width = width_limit - (padding_x * 2) # 좌측 패딩만 적용되므로 수정 필요
-            
-            # 정확한 너비 계산을 위해 시작 x를 0으로 가정하고 width_limit만 사용
-            temp_x_start = 0 
             
             for word in words:
                 # 다음 단어까지 포함한 너비가 width_limit을 초과하는지 확인
-                if safe_text_width(draw_obj, line_buffer + word, font=font) < width_limit:
+                if safe_text_width(draw_obj, line_buffer + word + ' ', font=font) < width_limit:
                     line_buffer += word + " "
                 else:
                     lines.append(line_buffer)
                     line_buffer = word + " "
-            lines.append(line_buffer)
+            lines.append(line_buffer.strip())
         
         for _ in lines:
-            total_block_height += font.size + (5 if is_world_section else 15) # 줄 간격 조정 (세계별 분석 5px)
+            total_block_height += font.size + (5 if is_world_section else 15) # 줄 간격 조정
             
-        total_block_height += (30 if is_world_section else 60) # 문단 간격 조정 (세계별 분석 30px, 종합 60px)
+        total_block_height += (30 if is_world_section else 60) # 문단 간격 조정
         return total_block_height
 
-    # 왼쪽 (종합 상세 분석) 높이 계산 (width_limit = main_section_width)
+    # 유효 너비 (main_section_width - 20px) 사용
+    effective_width = main_section_width - 20 
+    
+    # 왼쪽 (종합 상세 분석) 높이 계산
     y_left = section_title_font.size + 40 # 상세 성격 분석 제목 높이
     descriptions = comprehensive_result['descriptions']
-    y_left += calculate_multiline_text_block_height(descriptions['R'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=False)
-    y_left += calculate_multiline_text_block_height(descriptions['G'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=False)
-    y_left += calculate_multiline_text_block_height(descriptions['B'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=False)
+    y_left += calculate_multiline_text_block_height(descriptions['R'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=False)
+    y_left += calculate_multiline_text_block_height(descriptions['G'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=False)
+    y_left += calculate_multiline_text_block_height(descriptions['B'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=False)
     
-    # 오른쪽 (세계별 요약 분석) 높이 계산 (width_limit = main_section_width)
+    # 오른쪽 (세계별 요약 분석) 높이 계산
     y_right = section_title_font.size + 40 # 세계별 요약 분석 제목 높이
     for code, data in world_results.items():
         y_right += sub_section_title_font.size + 20 # 세계별 소제목 높이
-        y_right += calculate_multiline_text_block_height(data['description_R'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=True)
-        y_right += calculate_multiline_text_block_height(data['description_G'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=True)
-        y_right += calculate_multiline_text_block_height(data['description_B'], text_font, main_section_width, temp_draw, text_font_bold, is_world_section=True)
+        y_right += calculate_multiline_text_block_height(data['description_R'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=True)
+        y_right += calculate_multiline_text_block_height(data['description_G'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=True)
+        y_right += calculate_multiline_text_block_height(data['description_B'], text_font, effective_width, temp_draw, text_font_bold, is_world_section=True)
 
 
     final_img_height = int(calculated_y_for_height) + max(y_left, y_right) + 50
@@ -200,11 +210,13 @@ def generate_result_image(comprehensive_result, world_results, font_path):
 
     # 왼쪽 섹션의 X 시작/끝 좌표
     left_x_start = padding_x
-    left_section_width = color_box_x_end - padding_x # 유효 너비 550px
+    left_section_x_end = color_box_x_end 
+    left_section_width = left_section_x_end - left_x_start # 유효 너비 550px
 
     # 오른쪽 섹션의 X 시작/끝 좌표
     right_x_start = img_width / 2 + padding_x # 오른쪽 시작 지점
-    right_section_width = img_width - right_x_start - padding_x # 오른쪽 유효 너비 560px
+    right_section_x_end = img_width - padding_x
+    right_section_width = right_section_x_end - right_x_start # 유효 너비 560px
     
     # y_cursor는 두 섹션의 시작 Y 좌표
     start_y_for_two_cols = y_cursor
@@ -228,13 +240,16 @@ def generate_result_image(comprehensive_result, world_results, font_path):
 
         lines = []
         
-        # 세계별 분석 (is_world_section=True): 문자열 길이 기반 강제 줄바꿈 (띄어쓰기 문제 해결)
+        # 세계별 분석 (is_world_section=True): 문자열 길이 기반 강제 줄바꿈 (잘림 방지 보강)
         if is_world_section:
-            chars_per_line = int(width_limit / (text_font_obj.size * 0.55)) - 3
+            # 보수적 줄당 문자 수 계산 (width_limit / 폰트 너비)
+            chars_per_line = int(width_limit / (text_font_obj.size * 0.55)) - 7
+            if chars_per_line < 10: chars_per_line = 10
+            
             for i in range(0, len(description), chars_per_line):
                 lines.append(description[i:i + chars_per_line])
         
-        # 종합 분석 (is_world_section=False): 단어 단위 줄바꿈
+        # 종합 분석 (is_world_section=False): 단어 단위 줄바꿈 (겹침 방지 보강)
         else:
             words = description.split(' ')
             line_buffer = ""
@@ -242,7 +257,7 @@ def generate_result_image(comprehensive_result, world_results, font_path):
 
             for word in words:
                 # 다음 단어까지 포함한 너비가 유효 너비(width_limit)를 초과하는지 확인
-                if safe_text_width(draw_obj, line_buffer + word, font=text_font_obj) < width_limit:
+                if safe_text_width(draw_obj, line_buffer + word + ' ', font=text_font_obj) < width_limit:
                     line_buffer += word + " "
                 else:
                     lines.append(line_buffer)
@@ -258,6 +273,7 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         return current_y_local
 
     # 종합 상세 분석 (왼쪽 열)
+    # width_limit: left_section_width (550px)
     current_y_left = draw_description_block("진취형(R) 성향 분석", descriptions['R'], 'R', current_y_left, left_x_start, left_section_width, draw, text_font_bold, text_font, is_world_section=False)
     current_y_left = draw_description_block("중재형(G) 성향 분석", descriptions['G'], 'G', current_y_left, left_x_start, left_section_width, draw, text_font_bold, text_font, is_world_section=False)
     current_y_left = draw_description_block("신중형(B) 성향 분석", descriptions['B'], 'B', current_y_left, left_x_start, left_section_width, draw, text_font_bold, text_font, is_world_section=False)
@@ -273,6 +289,7 @@ def generate_result_image(comprehensive_result, world_results, font_path):
         current_y_right += sub_section_title_font.size + 20
 
         # 세계별 R, G, B 설명 (is_world_section=True)
+        # width_limit: right_section_width (560px)
         current_y_right = draw_description_block("추진력/결정/리더십", data['description_R'], 'default_r', current_y_right, right_x_start, right_section_width, draw, text_font_bold, text_font, is_world_section=True)
         current_y_right = draw_description_block("인간관계/협력/의사소통", data['description_G'], 'default_g', current_y_right, right_x_start, right_section_width, draw, text_font_bold, text_font, is_world_section=True)
         current_y_right = draw_description_block("사고방식/계획/판단", data['description_B'], 'default_b', current_y_right, right_x_start, right_section_width, draw, text_font_bold, text_font, is_world_section=True)
