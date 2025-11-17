@@ -417,9 +417,9 @@ if question_lists and description_blocks:
             with label_cols[0]: st.markdown("<p style='text-align: left; font-weight: bold; color: #555;'>⟵ 그렇지 않다</p>", unsafe_allow_html=True)
             with label_cols[2]: st.markdown("<p style='text-align: right; font-weight: bold; color: #555;'>그렇다 ⟶</p>", unsafe_allow_html=True)
             
-            # --- 숫자 버튼 중앙 정렬 로직 시작 ---
-            # 좌우 여백(2) + 버튼(1) x 9개 + 우측 여백(2) = 총 13 등분
-            center_cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2])
+            # --- 숫자 버튼 중앙 정렬 및 간격 확대 로직 시작 ---
+            # 좌우 여백(2.5) + 버튼(0.5) x 9개 + 우측 여백(2.5) = 총 11.5 등분
+            center_cols = st.columns([2.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 2.5])
             
             # 실제 버튼이 들어갈 9개의 컬럼
             button_columns = center_cols[1:10] 
@@ -429,7 +429,7 @@ if question_lists and description_blocks:
                     if st.button(str(val), key=f"q{q['id']}_val{val}"):
                         st.session_state.responses[q['id']] = val
                         st.rerun()
-            # --- 숫자 버튼 중앙 정렬 로직 끝 ---
+            # --- 숫자 버튼 중앙 정렬 및 간격 확대 로직 끝 ---
             
         else:
             if world_code == 'i': st.session_state.stage = 'intro_a'
