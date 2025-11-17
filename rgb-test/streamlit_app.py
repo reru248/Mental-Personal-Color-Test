@@ -416,12 +416,21 @@ if question_lists and description_blocks:
             label_cols = st.columns([1, 5, 1])
             with label_cols[0]: st.markdown("<p style='text-align: left; font-weight: bold; color: #555;'>⟵ 그렇지 않다</p>", unsafe_allow_html=True)
             with label_cols[2]: st.markdown("<p style='text-align: right; font-weight: bold; color: #555;'>그렇다 ⟶</p>", unsafe_allow_html=True)
-            cols = st.columns(9)
+            
+            # --- 숫자 버튼 중앙 정렬 로직 시작 ---
+            # 좌우 여백(2) + 버튼(1) x 9개 + 우측 여백(2) = 총 13 등분
+            center_cols = st.columns([2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2])
+            
+            # 실제 버튼이 들어갈 9개의 컬럼
+            button_columns = center_cols[1:10] 
+
             for i, val in enumerate(range(-4, 5)):
-                with cols[i]:
+                with button_columns[i]:
                     if st.button(str(val), key=f"q{q['id']}_val{val}"):
                         st.session_state.responses[q['id']] = val
                         st.rerun()
+            # --- 숫자 버튼 중앙 정렬 로직 끝 ---
+            
         else:
             if world_code == 'i': st.session_state.stage = 'intro_a'
             elif world_code == 'a': st.session_state.stage = 'intro_s'
@@ -443,6 +452,7 @@ if question_lists and description_blocks:
         total_score_G = (scores['GPi']+scores['GPa']+scores['GPs']) - (scores['GSi']+scores['GSa']+scores['GSs'])
         total_score_B = (scores['BPi']+scores['BPa']+scores['BPs']) - (scores['BSi']+scores['BSa']+scores['BSs'])
         
+        # NOTE: 이전에 total_score_X * 2가 제거된 버전으로 유지됨
         comp_final = {'R': 128 + total_score_R, 'G': 128 + total_score_G, 'B': 128 + total_score_B}
         
         comp_abs = {k: min(max(v, 0), 255) for k, v in comp_final.items()}
@@ -521,5 +531,3 @@ if question_lists and description_blocks:
             st.rerun()
 else:
     st.error("초기 데이터 로드에 실패하여 앱을 시작할 수 없습니다. 파일 경로 및 파일 내용을 확인해주세요.")
-
-
